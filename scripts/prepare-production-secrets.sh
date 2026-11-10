@@ -20,6 +20,8 @@ declare -a SECRETS=(
   "jwt_secret"
   "centrifugo_api_key"
   "centrifugo_token_secret"
+  "s3_access_key"
+  "s3_secret_key"
 )
 
 for name in "${SECRETS[@]}"; do

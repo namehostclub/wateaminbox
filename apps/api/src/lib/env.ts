@@ -562,12 +562,20 @@ export function validateProductionEnv(config: Env = env): void {
     "https:",
   ]);
   const r2Suffix = ".r2.cloudflarestorage.com";
-  if (
-    !storageEndpoint.hostname.toLowerCase().endsWith(r2Suffix) ||
-    storageEndpoint.hostname.length <= r2Suffix.length
-  ) {
+  const isR2 =
+    storageEndpoint.hostname.toLowerCase().endsWith(r2Suffix) &&
+    storageEndpoint.hostname.length > r2Suffix.length;
+  let isAppDomain = false;
+  try {
+    const appHostname = new URL(config.APP_URL).hostname.toLowerCase();
+    isAppDomain = storageEndpoint.hostname.toLowerCase() === appHostname;
+  } catch {
+    // APP_URL validation handles invalid URLs separately
+  }
+
+  if (!isR2 && !isAppDomain) {
     throw new Error(
-      "S3_ENDPOINT must use a Cloudflare account R2 S3 endpoint ending .r2.cloudflarestorage.com",
+      "S3_ENDPOINT must use a Cloudflare account R2 S3 endpoint ending .r2.cloudflarestorage.com or match APP_URL",
     );
   }
   if (
@@ -586,7 +594,7 @@ export function validateProductionEnv(config: Env = env): void {
       "S3_BUCKET must remain whatsapp-media to preserve stable media references",
     );
   }
-  if (config.S3_REGION !== "auto") {
+  if (isR2 && config.S3_REGION !== "auto") {
     throw new Error("S3_REGION must be auto for Cloudflare R2 in production");
   }
   if (!config.S3_FORCE_PATH_STYLE) {

@@ -17,7 +17,7 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Frame-Options DENY
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Permissions-Policy "camera=(), microphone=(self), geolocation=()"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	}
 }
@@ -45,6 +45,10 @@
 
 	handle /connection/* {
 		reverse_proxy centrifugo:8000
+	}
+
+	handle /whatsapp-media/* {
+		reverse_proxy minio:9000
 	}
 
 	handle {

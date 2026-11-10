@@ -54,6 +54,8 @@ services:
         condition: service_healthy
       centrifugo:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
       interval: 30s
@@ -240,6 +242,8 @@ services:
         condition: service_healthy
       centrifugo:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     read_only: true
     tmpfs: [/tmp]
     # apps/api/src/index.ts drains the HTTP server, stops its dispatchers, then
@@ -440,6 +444,52 @@ services:
       timeout: 5s
       retries: 10
 
+  minio:
+    <<: *service-defaults
+    image: cgr.dev/chainguard/minio:latest
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        export MINIO_ROOT_USER=$$(cat /run/secrets/s3_access_key)
+        export MINIO_ROOT_PASSWORD=$$(cat /run/secrets/s3_secret_key)
+        exec minio server /data
+    secrets:
+      - s3_access_key
+      - s3_secret_key
+    volumes:
+      - minio_data:/data
+    networks: [edge, backend, data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    <<: *service-defaults
+    restart: "no"
+    image: cgr.dev/chainguard/minio:latest
+    user: "0:0"
+    depends_on:
+      minio:
+        condition: service_healthy
+    secrets:
+      - s3_access_key
+      - s3_secret_key
+    networks: [data]
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        ACCESS_KEY=$$(cat /run/secrets/s3_access_key)
+        SECRET_KEY=$$(cat /run/secrets/s3_secret_key)
+        mc alias set local http://minio:9000 "$$ACCESS_KEY" "$$SECRET_KEY"
+        mc mb local/whatsapp-media --ignore-existing
+        mc anonymous set none local/whatsapp-media
+        exit 0
+
 
 networks:
   edge:
@@ -461,6 +511,7 @@ volumes:
   # Version directories are immutable. Retain this volume across releases so a
   # reviewed rollback can select an already verified worker artifact.
   whatsapp_worker_artifacts:
+  minio_data:
 
 secrets:
   postgres_password:
