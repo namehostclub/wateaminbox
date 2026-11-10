@@ -37,6 +37,7 @@ const STATUS_VALUES: ReadonlySet<string> = new Set(
 
 const ASSIGNMENT_VALUES: ReadonlySet<string> = new Set<AssignmentFilter>([
   "all",
+  "groups",
   "unread",
   "assignedToMe",
   "unassigned",

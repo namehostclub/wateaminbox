@@ -1,5 +1,5 @@
 import { formatChatListTime, isChannel } from "@wateaminbox/shared";
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, Users } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback";
@@ -222,6 +222,16 @@ export const ChatListItem = memo(function ChatListItem({
             />
           )
         )}
+        {/* Group Indicator Overlay - distinct badge on avatar for groups */}
+        {contact.isGroup && (
+          <span
+            className="absolute -top-1 -left-1 p-0.5 bg-emerald-600 text-white rounded-full shadow-sm ring-2 ring-white dark:ring-dark-secondary"
+            title={t("chat.groupBadge", "Group")}
+            aria-label={t("chat.groupBadge", "Group")}
+          >
+            <Users className="w-3 h-3" />
+          </span>
+        )}
         {/* Online Indicator - only for individual contacts */}
         {!contact.isGroup && contact.isOnline && (
           <span
@@ -234,17 +244,25 @@ export const ChatListItem = memo(function ChatListItem({
 
       {/* Chat Info */}
       <div className="flex-1 min-w-0">
-        {/* Top Row: Name and Time */}
+        {/* Top Row: Name, Group Badge, and Time */}
         <div className="flex items-center justify-between gap-2">
-          <span
-            className={`text-base truncate ${
-              unreadCount > 0
-                ? "font-semibold text-gray-900 dark:text-dark-text-primary"
-                : "text-gray-900 dark:text-dark-text-primary"
-            }`}
-          >
-            {displayName}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span
+              className={`text-base truncate ${
+                unreadCount > 0
+                  ? "font-semibold text-gray-900 dark:text-dark-text-primary"
+                  : "text-gray-900 dark:text-dark-text-primary"
+              }`}
+            >
+              {displayName}
+            </span>
+            {contact.isGroup && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40 shrink-0">
+                <Users className="w-3 h-3" />
+                {t("chat.groupBadge", "Group")}
+              </span>
+            )}
+          </div>
           <span
             className={`text-xs flex-shrink-0 ${
               unreadCount > 0

@@ -242,6 +242,10 @@ build_packages() {
     (cd packages/database && bun run build)
     print_success "  Database package built"
 
+    print_status "  Building adapter-telegram package..."
+    (cd packages/adapter-telegram && bun run build)
+    print_success "  Adapter-telegram package built"
+
     print_status "  Building UI package..."
     (cd packages/ui && bun run build)
     print_success "  UI package built"
@@ -383,6 +387,10 @@ start_dev_servers() {
 
     print_status "  Watching database package (→ logs/database.log)..."
     (cd "$ROOT_DIR/packages/database" && bun run dev) > "$LOGS_DIR/database.log" 2>&1 &
+    PIDS+=($!)
+
+    print_status "  Watching adapter-telegram package (→ logs/adapter-telegram.log)..."
+    (cd "$ROOT_DIR/packages/adapter-telegram" && bun run dev) > "$LOGS_DIR/adapter-telegram.log" 2>&1 &
     PIDS+=($!)
 
     print_status "  Watching UI package (→ logs/ui.log)..."

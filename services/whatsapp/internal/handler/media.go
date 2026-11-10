@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.mau.fi/whatsmeow"
@@ -27,6 +28,35 @@ func retainMediaReference(downloadable whatsmeow.DownloadableMessage, event *nat
 	event.MediaKey = bytes.Clone(downloadable.GetMediaKey())
 	event.MediaFileSHA256 = bytes.Clone(downloadable.GetFileSHA256())
 	event.MediaFileEncSHA256 = bytes.Clone(downloadable.GetFileEncSHA256())
+}
+
+// isNonRetryableMediaDownloadError reports whether an error from DownloadMedia indicates
+// a permanent condition where retrying will never succeed (e.g. Meta CDN HTTP 403 Forbidden
+// on expired historical media links, 404 Not Found, 410 Gone, or missing URL parameters).
+func isNonRetryableMediaDownloadError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, whatsmeow.ErrMediaDownloadFailedWith403) ||
+		errors.Is(err, whatsmeow.ErrMediaDownloadFailedWith404) ||
+		errors.Is(err, whatsmeow.ErrMediaDownloadFailedWith410) ||
+		errors.Is(err, whatsmeow.ErrNoURLPresent) ||
+		errors.Is(err, whatsmeow.ErrTooShortFile) {
+		return true
+	}
+	var httpErr whatsmeow.DownloadHTTPError
+	if errors.As(err, &httpErr) && (httpErr.StatusCode == http.StatusForbidden ||
+		httpErr.StatusCode == http.StatusNotFound ||
+		httpErr.StatusCode == http.StatusGone ||
+		httpErr.StatusCode == http.StatusUnauthorized) {
+		return true
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "status code 403") ||
+		strings.Contains(errStr, "status code 404") ||
+		strings.Contains(errStr, "status code 410") ||
+		strings.Contains(errStr, "status code 401") ||
+		strings.Contains(errStr, "no url present")
 }
 
 // downloadWithRetry downloads media with exponential backoff retry logic.
@@ -62,6 +92,12 @@ func (h *Handler) downloadWithRetry(ctx context.Context, downloadable whatsmeow.
 
 		// Store this attempt's error
 		lastErr = err
+
+		// Permanent failures (e.g. 403 on expired media URLs) fail-fast without retrying.
+		if isNonRetryableMediaDownloadError(err) {
+			log.Printf("Media download attempt %d encountered permanent error: %v (skipping retries)", attempt+1, err)
+			return nil, lastErr
+		}
 
 		// Log the failure
 		if attempt < mediaDownloadMaxRetries-1 {

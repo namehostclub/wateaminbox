@@ -288,6 +288,18 @@ export const MessageBubble = memo(function MessageBubble({
   // messenger does; media and system-ish rows keep their own meta row because
   // their content is not part of an inline formatting context.
   const hasInlineMeta = !message.isDeleted && message.messageType === "text";
+  const isPureMedia =
+    !message.isDeleted &&
+    (message.messageType === "image" ||
+      message.messageType === "video" ||
+      message.messageType === "sticker" ||
+      albumMessages.length > 1);
+  const hasCaption = Boolean(
+    message.content?.trim() || message.metadata?.caption?.trim(),
+  );
+  const hasSenderHeader =
+    (isOwn && isRunStart) ||
+    (isGroup && !isOwn && isRunStart && !message.isDeleted);
   const meta = <MessageMeta message={message} isOwn={isOwn} variant="inline" />;
 
   // A group event - someone joined, the title changed - is not anyone's
@@ -335,7 +347,12 @@ export const MessageBubble = memo(function MessageBubble({
       <div
         ref={bubbleRef}
         className={cn(
-          "relative max-w-[85%] px-2.5 py-[7px] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] transition-[background-color,box-shadow] duration-300 sm:max-w-[75%] md:max-w-[70%] md:px-3 md:py-2",
+          "relative max-w-[85%] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] transition-[background-color,box-shadow] duration-300 sm:max-w-[75%] md:max-w-[65%] lg:max-w-[60%]",
+          isPureMedia && !hasCaption && !hasSenderHeader
+            ? "p-[2px] pb-1"
+            : isPureMedia
+              ? "p-[2px] pb-1.5"
+              : "px-2.5 py-[7px] md:px-3 md:py-2",
           bubbleRadiusClass(isOwn, groupPosition),
           isOwn ? OWN_BUBBLE_CLASS : INCOMING_BUBBLE_CLASS,
           isHighlighted &&
@@ -664,7 +681,7 @@ function ReplyPreview({
             "aria-label": `${t("chat.reply")}: ${replySender}`,
           }
         : {})}
-      className={`mb-1.5 w-full overflow-hidden rounded-lg border-l-[3px] p-2 text-left ${
+      className={`mb-1.5 w-full overflow-hidden rounded-lg border-l-2 p-2 text-left ${
         isOwn
           ? "border-[#0e7a52] bg-black/[0.06] dark:border-[#68e0b6] dark:bg-black/20"
           : "border-whatsapp-green bg-black/[0.045] dark:bg-white/[0.06]"

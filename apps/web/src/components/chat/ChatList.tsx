@@ -6,6 +6,7 @@ import {
   Smartphone,
   Tags,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -352,6 +353,7 @@ export const ChatList = memo(function ChatList({
         return false;
       }
       if (assignmentFilter === "unread" && chat.unreadCount <= 0) return false;
+      if (assignmentFilter === "groups" && !chat.contact.isGroup) return false;
       if (
         accountFilter !== "all" &&
         !chatMatchesAccount(chat, accountFilter, channelConversations)
@@ -707,6 +709,18 @@ export const ChatList = memo(function ChatList({
           </button>
           <button
             type="button"
+            onClick={() => setAssignmentFilter("groups")}
+            className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              assignmentFilter === "groups"
+                ? "bg-whatsapp-teal-green text-white"
+                : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 dark:border-dark-border dark:bg-dark-tertiary dark:text-dark-text-secondary dark:hover:bg-dark-border"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            {t("chat.groups", "Groups")}
+          </button>
+          <button
+            type="button"
             onClick={() => setAssignmentFilter("unread")}
             className={`flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               assignmentFilter === "unread"
@@ -1016,13 +1030,35 @@ export const ChatList = memo(function ChatList({
             </div>
           )}
 
+        {/* Empty State - No Groups */}
+        {isEmpty &&
+          !isFirstRun &&
+          connectionState !== "loading" &&
+          !searchQuery &&
+          selectedTags.length === 0 &&
+          assignmentFilter === "groups" && (
+            <div className="flex flex-col items-center justify-center h-full px-4 py-8 text-center">
+              <Users className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mb-4" />
+              <p className="text-gray-600 dark:text-dark-text-primary font-medium">
+                {t("chat.noGroupsTitle", "No groups found")}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-dark-text-secondary mt-1">
+                {t(
+                  "chat.noGroupsSubtitle",
+                  "Groups from your connected accounts will appear here",
+                )}
+              </p>
+            </div>
+          )}
+
         {/* Empty State - No Chats */}
         {isEmpty &&
           !isFirstRun &&
           connectionState !== "loading" &&
           !searchQuery &&
           selectedTags.length === 0 &&
-          assignmentFilter !== "unread" && (
+          assignmentFilter !== "unread" &&
+          assignmentFilter !== "groups" && (
             <div className="flex flex-col items-center justify-center h-full px-4 py-8 text-center">
               <svg
                 className="w-12 h-12 text-gray-400 dark:text-dark-text-tertiary mb-4"

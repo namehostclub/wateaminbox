@@ -102,12 +102,12 @@ export function MessageContent({
       const imageAlt = mediaCaption || "Image message";
 
       return (
-        <div className="max-w-xs">
+        <div className="max-w-xs sm:max-w-sm">
           {mediaUrl ? (
             <>
               <button
                 type="button"
-                className={`group/media relative block max-w-full overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 ${
+                className={`group/media relative block max-w-full overflow-hidden rounded-[calc(1.15rem-2px)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 ${
                   isOwn
                     ? "focus-visible:ring-offset-whatsapp-green"
                     : "focus-visible:ring-offset-white dark:focus-visible:ring-offset-dark-elevated"

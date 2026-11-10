@@ -97,6 +97,8 @@ type Client struct {
 	labelRecovery       *labelRecoveryWaiter
 	catalogTokenMu      sync.Mutex
 	catalogToken        string
+	catalogNonceMu      sync.Mutex
+	catalogNonceCh      chan string
 	catalogOwnerJID     waTypes.JID
 	catalogLIDJID       waTypes.JID
 	catalogDeviceID     uint16
@@ -216,6 +218,16 @@ func (c *Client) internalEventHandlerWithSuccessStatus(evt interface{}) bool {
 
 func (c *Client) dispatchEvent(evt interface{}, durable bool) bool {
 	c.captureLabelRecoveryEvent(evt)
+	if nonceEvent, ok := evt.(*events.BusinessTokenNonce); ok {
+		c.catalogNonceMu.Lock()
+		if c.catalogNonceCh != nil {
+			select {
+			case c.catalogNonceCh <- nonceEvent.Nonce:
+			default:
+			}
+		}
+		c.catalogNonceMu.Unlock()
+	}
 	if timeout, ok := evt.(*events.KeepAliveTimeout); ok {
 		c.recoverKeepAlive(timeout)
 	}
@@ -1448,15 +1460,14 @@ func (c *Client) fetchCatalogAccessToken(ctx context.Context) (string, error) {
 	}
 
 	nonceCh := make(chan string, 1)
-	handlerID := c.client.AddEventHandler(func(evt any) {
-		if nonceEvent, ok := evt.(*events.BusinessTokenNonce); ok {
-			select {
-			case nonceCh <- nonceEvent.Nonce:
-			default:
-			}
-		}
-	})
-	defer c.client.RemoveEventHandler(handlerID)
+	c.catalogNonceMu.Lock()
+	c.catalogNonceCh = nonceCh
+	c.catalogNonceMu.Unlock()
+	defer func() {
+		c.catalogNonceMu.Lock()
+		c.catalogNonceCh = nil
+		c.catalogNonceMu.Unlock()
+	}()
 
 	response, err := c.client.DangerousInternals().SendIQ(ctx, whatsmeow.DangerousInfoQuery{
 		Namespace: "fb:thrift_iq",

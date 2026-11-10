@@ -99,6 +99,14 @@ func (m *Manager) resolveArtifact(version, expectedSHA256 string) (WorkerArtifac
 		return WorkerArtifact{}, err
 	}
 
+	if version == defaultArtifactVersion && m.config.WhatsAppBinaryPath != "" {
+		if computed, err := sha256File(m.config.WhatsAppBinaryPath); err == nil {
+			if expectedSHA256 == "" || strings.EqualFold(computed, expectedSHA256) {
+				return WorkerArtifact{Version: version, SHA256: computed, BinaryPath: m.config.WhatsAppBinaryPath}, nil
+			}
+		}
+	}
+
 	root, err := filepath.Abs(m.config.ArtifactRoot)
 	if err != nil {
 		return WorkerArtifact{}, fmt.Errorf("resolve artifact root: %w", err)

@@ -27,7 +27,12 @@ import {
 /**
  * Assignment filter type
  */
-export type AssignmentFilter = "all" | "assignedToMe" | "unassigned" | "unread";
+export type AssignmentFilter =
+  | "all"
+  | "groups"
+  | "assignedToMe"
+  | "unassigned"
+  | "unread";
 
 /**
  * Conversation lifecycle filter. Defaults to "open" - the common inbox

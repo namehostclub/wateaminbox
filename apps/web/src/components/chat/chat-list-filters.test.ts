@@ -87,6 +87,20 @@ describe("readChatListFilters", () => {
     });
   });
 
+  it("restores a saved Groups filter across a refresh", () => {
+    const store = fakeStore({
+      [CHAT_LIST_FILTERS_KEY]: JSON.stringify({
+        status: "all",
+        assignment: "groups",
+      }),
+    });
+
+    expect(readChatListFilters(store)).toEqual({
+      status: "all",
+      assignment: "groups",
+    });
+  });
+
   // Both directions are checked with literal values rather than against
   // DEFAULT_CHAT_LIST_FILTERS: the default status is itself "all", so
   // comparing to the constant would pass for any fallback it ever held.
