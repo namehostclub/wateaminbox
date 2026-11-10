@@ -124,6 +124,11 @@ start_api() {
 	# dev-start clears ports before launching us. This also recovers an orphaned
 	# watcher left behind if a previous supervisor exited unexpectedly.
 	clear_port_listeners
+	if [ -f "${ROOT_DIR}/.env" ]; then
+		set -a
+		. "${ROOT_DIR}/.env"
+		set +a
+	fi
 	# START_CMD should exec its long-running process so api_pid is authoritative.
 	(eval "$START_CMD") >>"$LOG_FILE" 2>&1 &
 	api_pid=$!

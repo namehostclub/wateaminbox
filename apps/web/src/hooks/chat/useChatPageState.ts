@@ -107,7 +107,7 @@ export interface ChatPageActions {
   ) => void;
   handleAttachFile: (
     files: File[],
-    type: "image" | "document",
+    type: "image" | "document" | "audio",
     caption: string,
   ) => Promise<boolean>;
 
@@ -417,7 +417,7 @@ export function useChatPageState(): ChatPageState & ChatPageActions {
   const handleAttachFile = React.useCallback(
     async (
       files: File[],
-      type: "image" | "document",
+      type: "image" | "document" | "audio",
       caption: string,
     ): Promise<boolean> => {
       if (!selectedChatId || files.length === 0) return false;
@@ -440,12 +440,12 @@ export function useChatPageState(): ChatPageState & ChatPageActions {
         const prepared = uploads.map((uploadResponse) => {
           let messageType: "image" | "video" | "audio" | "document" =
             "document";
-          if (uploadResponse.mimeType.startsWith("image/")) {
+          if (type === "audio" || uploadResponse.mimeType.startsWith("audio/")) {
+            messageType = "audio";
+          } else if (uploadResponse.mimeType.startsWith("image/")) {
             messageType = "image";
           } else if (uploadResponse.mimeType.startsWith("video/")) {
             messageType = "video";
-          } else if (uploadResponse.mimeType.startsWith("audio/")) {
-            messageType = "audio";
           }
           return { uploadResponse, messageType };
         });

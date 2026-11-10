@@ -217,9 +217,20 @@ describe("Bun maxRequestBodySize backstop", () => {
  */
 describe("deriveDownloadRequestMedia", () => {
   test("splits the real mime type and the category for audio", () => {
-    const got = deriveDownloadRequestMedia({ media_mime_type: "audio/ogg" });
-    expect(got.mediaType).toBe("audio");
-    expect(got.mimeType).toBe("audio/ogg");
+    const cases = [
+      "audio/ogg",
+      "audio/ogg; codecs=opus",
+      "audio/webm",
+      "audio/webm; codecs=opus",
+      "audio/mp4",
+      "audio/aac",
+      "audio/x-m4a",
+    ];
+    for (const mt of cases) {
+      const got = deriveDownloadRequestMedia({ media_mime_type: mt });
+      expect(got.mediaType).toBe("audio");
+      expect(got.mimeType).toBe(mt);
+    }
   });
 
   test("preserves codec parameters on the mime type", () => {

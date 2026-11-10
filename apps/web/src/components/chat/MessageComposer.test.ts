@@ -63,4 +63,25 @@ describe("MessageComposer: reply context threads through every send surface", ()
       expect(body()).toContain("replyToMessage?.id");
     });
   });
+
+  describe("voice recording and audio messaging", () => {
+    it("renders microphone button when message input is empty", () => {
+      expect(source).toContain("message.trim() ? (");
+      expect(source).toContain("<Send className=\"size-5.5\"");
+      expect(source).toContain("voiceRecorder.startRecording()");
+      expect(source).toContain("<Mic className=\"size-5.5\"");
+    });
+
+    it("renders VoiceRecorderBar when recording is active or paused", () => {
+      expect(source).toContain("voiceRecorder.isRecording || voiceRecorder.isPaused ? (");
+      expect(source).toContain("<VoiceRecorderBar");
+      expect(source).toContain("handleSendVoiceRecording");
+    });
+
+    it("provides audio option in attachment menu", () => {
+      expect(source).toContain('features.attachmentTypes.includes("audio")');
+      expect(source).toContain('triggerFileInput("audio")');
+      expect(source).toContain('accept="audio/*');
+    });
+  });
 });

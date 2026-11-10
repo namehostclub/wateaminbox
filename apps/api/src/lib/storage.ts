@@ -106,6 +106,7 @@ export async function getTenantMediaUsage(
  * Get file extension from MIME type
  */
 function getExtensionFromMimeType(mimeType: string): string {
+  const baseType = mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
@@ -115,10 +116,15 @@ function getExtensionFromMimeType(mimeType: string): string {
     "video/mp4": "mp4",
     "video/quicktime": "mov",
     "video/mpeg": "mpeg",
+    "video/webm": "webm",
     "audio/mpeg": "mp3",
     "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
     "audio/ogg": "ogg",
     "audio/wav": "wav",
+    "audio/webm": "webm",
+    "audio/aac": "aac",
+    "audio/opus": "opus",
     "application/pdf": "pdf",
     "application/msword": "doc",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -130,7 +136,7 @@ function getExtensionFromMimeType(mimeType: string): string {
     "text/plain": "txt",
   };
 
-  return mimeMap[mimeType] || "bin";
+  return mimeMap[baseType] || mimeMap[mimeType] || "bin";
 }
 
 /**

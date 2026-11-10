@@ -6,7 +6,9 @@ import { dayjs } from "@wateaminbox/shared";
 import {
   CalendarClock,
   FileText,
+  Headphones,
   Image as ImageIcon,
+  Mic,
   Paperclip,
   Send,
   Smile,
@@ -35,8 +37,10 @@ import {
 } from "../../hooks/ui";
 import type { GroupParticipant } from "../../hooks/useGroups";
 import { useQuickReplySuggestions } from "../../hooks/useQuickReplies";
+import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { uploadMedia } from "../../lib/api";
 import { AttachmentPreviewDialog } from "./AttachmentPreviewDialog";
+import { VoiceRecorderBar } from "./VoiceRecorderBar";
 import { ChatSwitcher } from "./ChatSwitcher";
 import { ChannelRoute, ConnectionRoute } from "./ConnectionIdentity";
 import { useComposerFeatures } from "./composer-capabilities";
@@ -143,7 +147,7 @@ interface MessageComposerProps {
   ) => void;
   onAttachFile: (
     files: File[],
-    type: "image" | "document",
+    type: "image" | "document" | "audio",
     caption: string,
   ) => Promise<boolean>;
   disabled?: boolean;
@@ -230,6 +234,42 @@ function AcknowledgedMessageComposer({
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const [isSendingVoice, setIsSendingVoice] = useState(false);
+  const voiceRecorder = useVoiceRecorder({
+    maxDurationSeconds: 300,
+    onMaxDurationReached: () => {
+      toast.info(
+        t(
+          "chat.maxRecordingReached",
+          "Maximum voice recording duration (5 minutes) reached.",
+        ),
+      );
+    },
+  });
+
+  useEffect(() => {
+    if (voiceRecorder.error) {
+      toast.error(voiceRecorder.error);
+    }
+  }, [voiceRecorder.error]);
+
+  useEffect(() => {
+    const handleEsc = (e: globalThis.KeyboardEvent) => {
+      if (
+        e.key === "Escape" &&
+        (voiceRecorder.isRecording || voiceRecorder.isPaused)
+      ) {
+        voiceRecorder.cancelRecording();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [
+    voiceRecorder.isRecording,
+    voiceRecorder.isPaused,
+    voiceRecorder.cancelRecording,
+  ]);
   // Track when we need to restore focus after sending a message
   // (flushSync from TanStack Virtual can steal focus during re-renders)
   const shouldRestoreFocusRef = useRef(false);
@@ -659,7 +699,7 @@ function AcknowledgedMessageComposer({
   // uploaded object.
   const handleScheduleAttachment = async (
     file: File,
-    _type: "image" | "document",
+    _type: "image" | "document" | "audio",
     caption: string,
     scheduledAtIso: string,
   ): Promise<boolean> => {
@@ -707,11 +747,11 @@ function AcknowledgedMessageComposer({
 
   const handleFileSelect = (
     e: ChangeEvent<HTMLInputElement>,
-    type: "image" | "document",
+    type: "image" | "document" | "audio",
   ) => {
     const selectedFiles = Array.from(e.target.files ?? []);
     if (selectedFiles.length > 0) {
-      if (type === "document") {
+      if (type === "document" || type === "audio") {
         setPendingAttachments([{ file: selectedFiles[0], type }]);
       } else {
         setPendingAttachments((current) => {
@@ -731,6 +771,47 @@ function AcknowledgedMessageComposer({
     // Reset input
     e.target.value = "";
     setShowAttachmentMenu(false);
+  };
+
+  const handleSendVoiceRecording = async () => {
+    if (isInputDisabled || isSendingVoice) return;
+    if (!(await acknowledgment.ensureAcknowledged())) return;
+
+    try {
+      setIsSendingVoice(true);
+      const blob = await voiceRecorder.stopRecording();
+      if (!blob || blob.size === 0) {
+        toast.error(t("chat.recordingEmpty", "Recording is empty"));
+        voiceRecorder.cancelRecording();
+        return;
+      }
+
+      let mimeType = blob.type || "audio/webm";
+      if (mimeType.startsWith("video/")) {
+        mimeType = mimeType.replace(/^video\//, "audio/");
+      }
+      const ext = mimeType.includes("ogg")
+        ? "ogg"
+        : mimeType.includes("mp4") || mimeType.includes("m4a")
+          ? "m4a"
+          : "webm";
+      const file = new File([blob], `voice-note-${Date.now()}.${ext}`, {
+        type: mimeType,
+      });
+
+      const success = await onAttachFile([file], "audio", "");
+      if (success) {
+        voiceRecorder.cancelRecording();
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("chat.sendVoiceFailed", "Failed to send voice recording"),
+      );
+    } finally {
+      setIsSendingVoice(false);
+    }
   };
 
   // Pasting a screenshot is the fastest way to attach one, and it is what
@@ -777,9 +858,11 @@ function AcknowledgedMessageComposer({
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  const triggerFileInput = (type: "image" | "document") => {
+  const triggerFileInput = (type: "image" | "document" | "audio") => {
     if (type === "image") {
       imageInputRef.current?.click();
+    } else if (type === "audio") {
+      audioInputRef.current?.click();
     } else {
       fileInputRef.current?.click();
     }
@@ -911,8 +994,23 @@ function AcknowledgedMessageComposer({
             phone that keeps every control inside one thumb arc instead of
             spreading five 40px targets across the full width. */}
         <div className="flex items-end gap-1.5 px-2 pb-2 pt-1.5 sm:px-3">
-          <div
-            className={`relative flex min-w-0 flex-1 items-end gap-0.5 rounded-[1.5rem] px-1 ring-1 transition-shadow ${
+          {voiceRecorder.isRecording || voiceRecorder.isPaused ? (
+            <VoiceRecorderBar
+              isRecording={voiceRecorder.isRecording}
+              isPaused={voiceRecorder.isPaused}
+              duration={voiceRecorder.duration}
+              audioLevels={voiceRecorder.audioLevels}
+              audioUrl={voiceRecorder.audioUrl}
+              isSending={isSendingVoice}
+              onCancel={voiceRecorder.cancelRecording}
+              onPause={voiceRecorder.pauseRecording}
+              onResume={voiceRecorder.resumeRecording}
+              onSend={handleSendVoiceRecording}
+            />
+          ) : (
+            <>
+              <div
+                className={`relative flex min-w-0 flex-1 items-end gap-0.5 rounded-[1.5rem] px-1 ring-1 transition-shadow ${
               isInputDisabled
                 ? "bg-black/[0.035] opacity-60 ring-black/[0.05] dark:bg-white/[0.045] dark:ring-white/[0.05]"
                 : shouldShowQuickReplyPicker || shouldShowMentionPicker
@@ -1021,6 +1119,18 @@ function AcknowledgedMessageComposer({
                         <span>{t("chat.mediaTypes.document", "Document")}</span>
                       </button>
                     )}
+                    {features.attachmentTypes.includes("audio") && (
+                      <button
+                        type="button"
+                        className="mt-0.5 flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[#3b4a54] transition-colors hover:bg-[#f0f2f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]/35 dark:text-dark-text-primary dark:hover:bg-white/[0.06]"
+                        onClick={() => triggerFileInput("audio")}
+                      >
+                        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e56b46] text-white">
+                          <Headphones className="size-4.5" aria-hidden="true" />
+                        </span>
+                        <span>{t("chat.mediaTypes.audio", "Audio")}</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1041,6 +1151,14 @@ function AcknowledgedMessageComposer({
                   disabled={isInputDisabled}
                   className="hidden"
                   onChange={(e) => handleFileSelect(e, "document")}
+                />
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.webm"
+                  disabled={isInputDisabled}
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, "audio")}
                 />
               </div>
             )}
@@ -1151,22 +1269,38 @@ function AcknowledgedMessageComposer({
             )}
           </div>
 
-          {/* Send: a standing 44px target outside the field, so it never
-              moves as the textarea grows and stays reachable by thumb. */}
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!message.trim() || isInputDisabled}
-            className={`grid size-11 shrink-0 touch-manipulation place-items-center rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f0f2f5] dark:focus-visible:ring-offset-dark-secondary ${
-              message.trim() && !isInputDisabled
-                ? "bg-[#00a884] text-white shadow-sm shadow-[#00a884]/25 hover:bg-[#008f72] active:scale-95"
-                : "cursor-not-allowed bg-black/[0.05] text-[#aebac1] dark:bg-white/[0.06] dark:text-dark-text-tertiary"
-            }`}
-            aria-label={t("chat.sendMessage", "Send Message")}
-          >
-            <Send className="size-5.5" strokeWidth={1.9} aria-hidden="true" />
-          </button>
-        </div>
+          {/* Action button: Send when text is present, Mic when empty */}
+          {message.trim() ? (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={isInputDisabled}
+              className="grid size-11 shrink-0 touch-manipulation place-items-center rounded-full bg-[#00a884] text-white shadow-sm shadow-[#00a884]/25 transition-all hover:bg-[#008f72] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f0f2f5] dark:focus-visible:ring-offset-dark-secondary"
+              aria-label={t("chat.sendMessage", "Send Message")}
+            >
+              <Send className="size-5.5" strokeWidth={1.9} aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                void voiceRecorder.startRecording();
+              }}
+              disabled={isInputDisabled}
+              className={`grid size-11 shrink-0 touch-manipulation place-items-center rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]/40 ${
+                isInputDisabled
+                  ? "cursor-not-allowed bg-black/[0.05] text-[#aebac1] dark:bg-white/[0.06] dark:text-dark-text-tertiary"
+                  : "text-[#54656f] hover:bg-black/[0.055] hover:text-[#008069] active:scale-95 dark:text-dark-text-secondary dark:hover:bg-white/[0.06] dark:hover:text-emerald-400"
+              }`}
+              aria-label={t("chat.recordVoice", "Record voice message")}
+              title={t("chat.recordVoice", "Record voice message")}
+            >
+              <Mic className="size-5.5" strokeWidth={1.9} aria-hidden="true" />
+            </button>
+          )}
+        </>
+      )}
+    </div>
       </footer>
 
       {pendingAttachments.length > 0 && (

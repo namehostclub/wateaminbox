@@ -314,6 +314,7 @@ mediaRoutes.post("/upload", uploadRateLimiter, async (c) => {
   }
 
   // Validate file type
+  const baseType = (file.type || "").split(";")[0]?.trim().toLowerCase() ?? "";
   const allowedTypes = [
     // Images
     "image/jpeg",
@@ -325,11 +326,16 @@ mediaRoutes.post("/upload", uploadRateLimiter, async (c) => {
     "video/mp4",
     "video/quicktime",
     "video/mpeg",
+    "video/webm",
     // Audio
     "audio/mpeg",
     "audio/mp4",
+    "audio/x-m4a",
     "audio/ogg",
     "audio/wav",
+    "audio/webm",
+    "audio/aac",
+    "audio/opus",
     // Documents
     "application/pdf",
     "application/msword",
@@ -341,7 +347,7 @@ mediaRoutes.post("/upload", uploadRateLimiter, async (c) => {
     "text/plain",
   ];
 
-  if (!allowedTypes.includes(file.type)) {
+  if (!allowedTypes.includes(baseType)) {
     return badRequest(
       c,
       `Unsupported file type: ${file.type}. Allowed types: images, videos, audio, PDF, Office documents, ZIP, TXT`,

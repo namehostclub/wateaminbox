@@ -157,6 +157,9 @@ export async function handleResponse<T>(
   response: Response,
   requestCompanyId: string | null = companyId,
 ): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+
   if (!response.ok) {
     // A private deployment may require billing before workspace APIs become
     // available. Keep the OSS client commercial-logic-free: HTTP 402 plus the
@@ -169,22 +172,42 @@ export async function handleResponse<T>(
       message: string;
       details?: Record<string, unknown>;
     };
-    try {
-      const jsonResponse = await response.json();
-      // Handle both { error: "..." } and { message: "..." } formats from backend
+    if (isJson) {
+      try {
+        const jsonResponse = await response.json();
+        // Handle both { error: "..." } and { message: "..." } formats from backend
+        errorData = {
+          code: jsonResponse.code || jsonResponse.error || "UNKNOWN_ERROR",
+          message:
+            jsonResponse.message ||
+            jsonResponse.error ||
+            response.statusText ||
+            "An unknown error occurred",
+          details: jsonResponse.details || jsonResponse.existingContact,
+        };
+      } catch {
+        errorData = {
+          code: "UNKNOWN_ERROR",
+          message: response.statusText || "An unknown error occurred",
+        };
+      }
+    } else {
+      const text = await response.text();
+      const lowerText = text.trim().toLowerCase();
+      const isHtml =
+        lowerText.startsWith("<!doctype") || lowerText.startsWith("<html");
+      const defaultStatusMessage =
+        response.status === 404
+          ? "Backend API server not found (HTTP 404). Ensure the backend API is running and routed at /api."
+          : response.status === 502 || response.status === 503
+            ? `Backend service unavailable (HTTP ${response.status}). The server is starting up or unreachable.`
+            : `Server returned an error (HTTP ${response.status}).`;
+
       errorData = {
-        code: jsonResponse.code || jsonResponse.error || "UNKNOWN_ERROR",
-        message:
-          jsonResponse.message ||
-          jsonResponse.error ||
-          response.statusText ||
-          "An unknown error occurred",
-        details: jsonResponse.details || jsonResponse.existingContact,
-      };
-    } catch {
-      errorData = {
-        code: "UNKNOWN_ERROR",
-        message: response.statusText || "An unknown error occurred",
+        code: isHtml ? "BACKEND_UNREACHABLE" : "INVALID_RESPONSE",
+        message: isHtml
+          ? `Backend API unreachable (${response.status}): received HTML page instead of JSON. Ensure the backend server is running and /api is properly routed.`
+          : response.statusText || defaultStatusMessage,
       };
     }
     throw new ApiRequestError(
@@ -198,6 +221,20 @@ export async function handleResponse<T>(
   // Handle empty responses
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (!isJson) {
+    const text = await response.text();
+    const lowerText = text.trim().toLowerCase();
+    const isHtml =
+      lowerText.startsWith("<!doctype") || lowerText.startsWith("<html");
+    throw new ApiRequestError(
+      response.status,
+      isHtml ? "BACKEND_UNREACHABLE" : "INVALID_RESPONSE",
+      isHtml
+        ? "Backend API unreachable: the server returned an HTML page instead of JSON. Ensure the backend server is running and /api is properly routed."
+        : "Expected JSON response from server but received non-JSON data.",
+    );
   }
 
   const json = await response.json();
@@ -225,6 +262,11 @@ async function requestTokenRefresh(): Promise<TokenRefreshOutcome> {
     });
 
     if (response.ok) {
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.warn("[API] Token refresh received non-JSON response");
+        return "unavailable";
+      }
       const data = (await response.json()) as RefreshResponse;
       setAuthToken(data.tokens.accessToken);
       return "refreshed";

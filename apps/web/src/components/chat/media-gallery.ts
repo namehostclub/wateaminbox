@@ -2,7 +2,7 @@ export const MAX_MEDIA_GALLERY_ITEMS = 30;
 
 export interface PendingAttachment {
   file: File;
-  type: "image" | "document";
+  type: "image" | "document" | "audio";
 }
 
 function fileIdentity(file: File): string {

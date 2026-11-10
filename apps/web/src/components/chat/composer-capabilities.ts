@@ -50,7 +50,7 @@ export const LEGACY_COMPOSER_FEATURES: ComposerFeatures = {
   canSchedule: true,
   canSendTyping: true,
   canMentionGroups: true,
-  attachmentTypes: ["image", "document"],
+  attachmentTypes: ["image", "document", "audio"],
 };
 
 export const ComposerFeaturesContext = createContext<ComposerFeatures>(

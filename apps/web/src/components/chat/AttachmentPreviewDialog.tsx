@@ -1,5 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { CalendarClock, FileText, Loader2, Plus, Send, X } from "lucide-react";
+import { CalendarClock, FileText, Headphones, Loader2, Plus, Send, X } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useState } from "react";
 import { ScheduleMessagePopover } from "./ScheduleMessagePopover";
 import { useTranslation } from "react-i18next";
@@ -9,19 +9,19 @@ const MAX_CAPTION_LENGTH = 1024;
 
 interface AttachmentPreviewDialogProps {
   attachments: PendingAttachment[];
-  attachmentType: "image" | "document";
+  attachmentType: "image" | "document" | "audio";
   onCancel: () => void;
   onAddFiles?: () => void;
   onRemoveFile: (index: number) => void;
   onSend: (
     files: File[],
-    type: "image" | "document",
+    type: "image" | "document" | "audio",
     caption: string,
   ) => Promise<boolean>;
   /** When provided, the dialog offers scheduling next to immediate send. */
   onSchedule?: (
     file: File,
-    type: "image" | "document",
+    type: "image" | "document" | "audio",
     caption: string,
     scheduledAtIso: string,
   ) => Promise<boolean>;
@@ -54,6 +54,8 @@ export function AttachmentPreviewDialog({
   const isBusy = isSending || isScheduling;
   const file = attachments[activeIndex]?.file ?? attachments[0]?.file;
   const isVideo = file.type.startsWith("video/");
+  const isAudio =
+    attachmentType === "audio" || file.type.startsWith("audio/");
   const isVisualMedia =
     attachmentType === "image" && (file.type.startsWith("image/") || isVideo);
   const fileNameParts = file.name.split(".");
@@ -64,9 +66,11 @@ export function AttachmentPreviewDialog({
 
   useEffect(() => {
     const urls = attachments.map(({ file: attachmentFile, type }) =>
-      type === "image" &&
-      (attachmentFile.type.startsWith("image/") ||
-        attachmentFile.type.startsWith("video/"))
+      (type === "image" &&
+        (attachmentFile.type.startsWith("image/") ||
+          attachmentFile.type.startsWith("video/"))) ||
+      type === "audio" ||
+      attachmentFile.type.startsWith("audio/")
         ? URL.createObjectURL(attachmentFile)
         : "",
     );
@@ -203,6 +207,24 @@ export function AttachmentPreviewDialog({
                   className="max-h-[58vh] max-w-full rounded-lg object-contain shadow-2xl shadow-black/30"
                 />
               )
+            ) : isAudio && previewUrls[activeIndex] ? (
+              <div className="flex w-full max-w-md flex-col items-center rounded-2xl bg-[#202c33] p-6 text-center shadow-2xl">
+                <span className="mb-4 grid size-16 place-items-center rounded-full bg-[#00a884]/20 text-[#00a884]">
+                  <Headphones className="size-8" aria-hidden="true" />
+                </span>
+                <p className="mb-1 max-w-full truncate text-sm font-medium text-white/90">
+                  {file.name}
+                </p>
+                <p className="mb-4 text-xs text-white/50">
+                  {formatFileSize(file.size)}
+                </p>
+                <audio
+                  src={previewUrls[activeIndex]}
+                  controls
+                  className="w-full"
+                  aria-label={`Preview ${file.name}`}
+                />
+              </div>
             ) : (
               <div className="flex max-w-sm flex-col items-center text-center">
                 <span className="relative grid size-24 place-items-center rounded-2xl bg-[#202c33] text-[#aebac1] shadow-xl shadow-black/20">

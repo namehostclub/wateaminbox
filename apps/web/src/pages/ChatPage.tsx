@@ -201,7 +201,7 @@ export function ChatPage() {
   const handleChannelAttachFile = useCallback(
     async (
       files: File[],
-      type: "image" | "document",
+      type: "image" | "document" | "audio",
       caption: string,
     ): Promise<boolean> => {
       if (!channelConversation) {
@@ -212,11 +212,13 @@ export function ChatPage() {
           const uploaded = await uploadMedia(file);
           let messageType: "image" | "video" | "audio" | "document" =
             "document";
-          if (uploaded.mimeType.startsWith("image/")) messageType = "image";
-          else if (uploaded.mimeType.startsWith("video/"))
-            messageType = "video";
-          else if (uploaded.mimeType.startsWith("audio/"))
+          if (type === "audio" || uploaded.mimeType.startsWith("audio/")) {
             messageType = "audio";
+          } else if (uploaded.mimeType.startsWith("image/")) {
+            messageType = "image";
+          } else if (uploaded.mimeType.startsWith("video/")) {
+            messageType = "video";
+          }
           await sendChannelMessage(channelConversation.id, {
             content: index === 0 ? caption : "",
             messageType,
