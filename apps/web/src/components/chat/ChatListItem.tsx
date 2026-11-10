@@ -424,5 +424,3 @@ export function ChatListItemSkeleton() {
     </div>
   );
 }
-
-export default ChatListItem;

@@ -1145,5 +1145,3 @@ export const ChatList = memo(function ChatList({
     </div>
   );
 });
-
-export default ChatList;
