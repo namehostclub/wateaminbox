@@ -464,10 +464,19 @@ function requiredMailCredentials(config: Env): Record<string, string> {
       CLOUDFLARE_EMAIL_API_TOKEN: config.CLOUDFLARE_EMAIL_API_TOKEN,
     };
   }
+  if (config.MAIL_DRIVER === "log") {
+    return {};
+  }
   return { RESEND_API_KEY: config.RESEND_API_KEY };
 }
 
 function validateMailCredentials(config: Env): void {
+  if (
+    config.MAIL_DRIVER === "log" &&
+    process.env.ALLOW_LOG_MAIL === "true"
+  ) {
+    return;
+  }
   if (!deliveringMailDrivers.includes(config.MAIL_DRIVER)) {
     throw new Error(
       `MAIL_DRIVER must deliver mail in production; use one of: ${deliveringMailDrivers.join(", ")}`,
