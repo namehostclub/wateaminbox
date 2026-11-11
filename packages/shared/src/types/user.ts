@@ -5,6 +5,8 @@ export interface User {
   avatarUrl?: string;
   companyId: string;
   role: UserRole;
+  isActive?: boolean;
+  isSuperAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

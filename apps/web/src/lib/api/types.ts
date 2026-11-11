@@ -114,6 +114,8 @@ export interface CurrentUserResponse {
   gravatarUrl: string;
   hasCustomAvatar: boolean;
   emailVerified: boolean;
+  isActive?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 export interface UpdateProfileRequest {

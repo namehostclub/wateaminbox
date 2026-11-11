@@ -149,6 +149,8 @@ export interface UsersTable {
   avatar_key: string | null;
   password_hash: string;
   email_verified_at: Date | null;
+  is_active: Generated<boolean>;
+  is_super_admin: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

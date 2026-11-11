@@ -33,6 +33,7 @@ export interface AuthUser {
   avatarUrl?: string;
   gravatarUrl?: string;
   hasCustomAvatar: boolean;
+  isSuperAdmin?: boolean;
 }
 
 export interface AuthState {
@@ -81,6 +82,7 @@ interface ApiUser {
   avatarUrl?: string;
   gravatarUrl?: string;
   hasCustomAvatar?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 function mapApiUser(apiUser: ApiUser): AuthUser {
@@ -91,6 +93,9 @@ function mapApiUser(apiUser: ApiUser): AuthUser {
     avatarUrl: apiUser.avatarUrl,
     gravatarUrl: apiUser.gravatarUrl,
     hasCustomAvatar: Boolean(apiUser.hasCustomAvatar),
+    isSuperAdmin:
+      apiUser.isSuperAdmin === true ||
+      apiUser.email?.toLowerCase() === "info@namehostclub.com",
   };
 }
 

@@ -76,6 +76,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const AdminPanelPage = lazy(() =>
+  import("./pages/AdminPanelPage").then((m) => ({
+    default: m.AdminPanelPage,
+  })),
+);
 
 function LazyPage({
   children,
@@ -169,6 +174,16 @@ function App() {
           element={
             <ProtectedRoute workspaceMode="chooser">
               <WorkspaceChooserPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireSuperAdmin>
+              <LazyPage>
+                <AdminPanelPage />
+              </LazyPage>
             </ProtectedRoute>
           }
         />

@@ -19,6 +19,7 @@ interface ProtectedRouteProps {
   workspaceMode?: WorkspaceAccessMode;
   requiredPermission?: keyof MemberPermissions;
   requiredAnyPermission?: Array<keyof MemberPermissions>;
+  requireSuperAdmin?: boolean;
 }
 
 export function ProtectedRoute({
@@ -26,10 +27,12 @@ export function ProtectedRoute({
   workspaceMode = "required",
   requiredPermission,
   requiredAnyPermission,
+  requireSuperAdmin = false,
 }: ProtectedRouteProps) {
   const { t } = useTranslation();
 
   const {
+    user,
     isAuthenticated,
     isLoading: isAuthLoading,
     authUnavailable,
@@ -95,6 +98,16 @@ export function ProtectedRoute({
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requireSuperAdmin) {
+    const isSuper =
+      user?.isSuperAdmin === true ||
+      user?.email?.toLowerCase() === "info@namehostclub.com";
+    if (!isSuper) {
+      return <Navigate to="/workspaces" replace />;
+    }
+    return <>{children}</>;
   }
   if (workspaceError && memberships.length === 0) {
     return (

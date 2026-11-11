@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { actionsRoutes } from "./actions/index.js";
+import { adminRoutes } from "./admin/index.js";
 import { analyticsRoutes } from "./analytics.js";
 import { apiTokenRoutes } from "./api-tokens.js";
 import { auditRoutes } from "./audit.js";
@@ -70,6 +71,9 @@ routes.route("/oauth", oauthRoutes);
 
 // MCP endpoint (API token authenticated)
 routes.route("/mcp", mcpRoutes);
+
+// Super Admin routes
+routes.route("/admin", adminRoutes);
 
 // Audit routes
 routes.route("/audit", auditRoutes);

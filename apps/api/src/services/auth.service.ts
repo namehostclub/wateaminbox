@@ -72,6 +72,8 @@ export interface AuthUser {
   name: string | null;
   avatarKey: string | null;
   emailVerifiedAt: Date | null;
+  isActive?: boolean;
+  isSuperAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,6 +86,8 @@ export interface AuthUserResponse {
   gravatarUrl: string;
   hasCustomAvatar: boolean;
   emailVerified: boolean;
+  isActive?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 // Re-export AuthError for backward compatibility with routes
@@ -172,6 +176,8 @@ async function discardAuthToken(token: string): Promise<void> {
 export async function toAuthUserResponse(
   user: Pick<AuthUser, "id" | "email" | "name" | "emailVerifiedAt"> & {
     avatarKey?: string | null;
+    isActive?: boolean;
+    isSuperAdmin?: boolean;
   },
 ): Promise<AuthUserResponse> {
   const gravatarUrl = getGravatarUrl(user.email);
@@ -183,6 +189,10 @@ export async function toAuthUserResponse(
       // Profile access should remain available if object storage is down.
     }
   }
+  const isSuperAdmin =
+    user.isSuperAdmin === true ||
+    user.email?.toLowerCase() === "info@namehostclub.com";
+
   return {
     id: user.id,
     email: user.email,
@@ -191,6 +201,8 @@ export async function toAuthUserResponse(
     gravatarUrl,
     hasCustomAvatar: Boolean(user.avatarKey),
     emailVerified: Boolean(user.emailVerifiedAt),
+    isActive: user.isActive !== false,
+    isSuperAdmin,
   };
 }
 
@@ -406,6 +418,15 @@ export async function login(
       "Invalid email or password",
       "INVALID_CREDENTIALS",
       401,
+    );
+  }
+
+  // Check active status
+  if (user.is_active === false) {
+    throw new AuthError(
+      "Your account has been deactivated. Please contact an administrator.",
+      "ACCOUNT_DEACTIVATED",
+      403,
     );
   }
 
@@ -1177,6 +1198,8 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
       "name",
       "avatar_key",
       "email_verified_at",
+      "is_active",
+      "is_super_admin",
       "created_at",
       "updated_at",
     ])
@@ -1192,6 +1215,10 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
     name: user.name,
     avatarKey: user.avatar_key,
     emailVerifiedAt: user.email_verified_at,
+    isActive: user.is_active ?? true,
+    isSuperAdmin:
+      user.is_super_admin === true ||
+      user.email?.toLowerCase() === "info@namehostclub.com",
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

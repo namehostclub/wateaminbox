@@ -15,6 +15,8 @@ declare module "hono" {
       name: string | null;
       avatarKey?: string | null;
       emailVerifiedAt: Date | null;
+      isActive?: boolean;
+      isSuperAdmin?: boolean;
     };
     session: {
       id: string;
@@ -84,6 +86,18 @@ export const authMiddleware = async (c: Context, next: Next) => {
     );
   }
 
+  // Check if account has been deactivated by administrator
+  if (user.isActive === false) {
+    return c.json(
+      {
+        error: "Forbidden",
+        message: "Your account has been deactivated. Please contact an administrator.",
+        code: "ACCOUNT_DEACTIVATED",
+      },
+      403,
+    );
+  }
+
   // Update session activity (fire and forget)
   updateSessionActivity(payload.sessionId).catch(() => {
     // Ignore errors for session activity updates
@@ -96,6 +110,10 @@ export const authMiddleware = async (c: Context, next: Next) => {
     name: user.name,
     avatarKey: user.avatarKey,
     emailVerifiedAt: user.emailVerifiedAt,
+    isActive: user.isActive ?? true,
+    isSuperAdmin:
+      user.isSuperAdmin === true ||
+      user.email?.toLowerCase() === "info@namehostclub.com",
   });
   c.set("session", {
     id: payload.sessionId,
@@ -126,6 +144,10 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
           name: user.name,
           avatarKey: user.avatarKey,
           emailVerifiedAt: user.emailVerifiedAt,
+          isActive: user.isActive ?? true,
+          isSuperAdmin:
+            user.isSuperAdmin === true ||
+            user.email?.toLowerCase() === "info@namehostclub.com",
         });
         c.set("session", {
           id: payload.sessionId,
