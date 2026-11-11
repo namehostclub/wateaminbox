@@ -9,7 +9,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
@@ -260,15 +259,6 @@ export function ProtectedAppLayout() {
       icon: CreditCard,
       visible: activeWorkspace.role === "owner" && billingUrl !== null,
       external: true,
-    },
-    {
-      labelKey: "nav.adminPanel",
-      label: "Admin Panel",
-      path: "/admin",
-      icon: ShieldCheck,
-      visible:
-        user?.isSuperAdmin === true ||
-        user?.email?.toLowerCase() === "info@namehostclub.com",
     },
   ];
   const visibleItems = items.filter((item) => item.visible);

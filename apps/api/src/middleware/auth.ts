@@ -112,8 +112,8 @@ export const authMiddleware = async (c: Context, next: Next) => {
     emailVerifiedAt: user.emailVerifiedAt,
     isActive: user.isActive ?? true,
     isSuperAdmin:
-      user.isSuperAdmin === true ||
-      user.email?.toLowerCase() === "info@namehostclub.com",
+      user.isSuperAdmin === true &&
+      user.email?.toLowerCase().trim() === "info@namehostclub.com",
   });
   c.set("session", {
     id: payload.sessionId,
@@ -146,8 +146,8 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
           emailVerifiedAt: user.emailVerifiedAt,
           isActive: user.isActive ?? true,
           isSuperAdmin:
-            user.isSuperAdmin === true ||
-            user.email?.toLowerCase() === "info@namehostclub.com",
+            user.isSuperAdmin === true &&
+            user.email?.toLowerCase().trim() === "info@namehostclub.com",
         });
         c.set("session", {
           id: payload.sessionId,

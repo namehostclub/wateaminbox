@@ -19,14 +19,15 @@ export const superAdminMiddleware = async (c: Context, next: Next) => {
   }
 
   const isSuper =
-    user.isSuperAdmin === true ||
-    user.email?.toLowerCase() === "info@namehostclub.com";
+    user.email?.toLowerCase().trim() === "info@namehostclub.com" &&
+    user.isSuperAdmin === true;
 
   if (!isSuper) {
     return c.json(
       {
         error: "Forbidden",
-        message: "Super admin privileges required to access this resource",
+        message:
+          "Access restricted: Only info@namehostclub.com super admin is authorized.",
       },
       403,
     );

@@ -205,6 +205,16 @@ export function AdminPanelPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const isAuthorizedSuperAdmin =
+    user?.email?.toLowerCase().trim() === "info@namehostclub.com" &&
+    user?.isSuperAdmin === true;
+
+  useEffect(() => {
+    if (!isAuthorizedSuperAdmin) {
+      navigate("/workspaces", { replace: true });
+    }
+  }, [isAuthorizedSuperAdmin, navigate]);
+
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "usage">(
     "overview",
   );
@@ -302,6 +312,10 @@ export function AdminPanelPage() {
       setIsResetting(false);
     }
   };
+
+  if (!isAuthorizedSuperAdmin) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-slate-50 text-slate-900 dark:bg-dark-primary dark:text-dark-text-primary">

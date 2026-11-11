@@ -38,7 +38,7 @@ export function LoginPage() {
     getAuthRedirectFromState(location.state);
   const invitationToken = getInvitationTokenFromRedirect(redirectTo);
   const suggestedEmail = searchParams.get("email") ?? "";
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
+  const { login, isLoading, error, clearError, isAuthenticated, user } = useAuth();
   const {
     activeWorkspaceId,
     isLoading: isWorkspaceLoading,
@@ -71,7 +71,20 @@ export function LoginPage() {
   React.useEffect(() => {
     if (!isAuthenticated || isWorkspaceLoading) return;
     if (redirectTo) {
-      navigate(redirectTo, { replace: true });
+      const isSuper =
+        user?.email?.toLowerCase().trim() === "info@namehostclub.com" &&
+        user?.isSuperAdmin === true;
+      if (redirectTo.startsWith("/admin") && !isSuper) {
+        if (needsWorkspaceSetup) {
+          navigate("/company-setup", { replace: true });
+        } else if (needsWorkspaceChoice || !activeWorkspaceId) {
+          navigate("/workspaces", { replace: true });
+        } else {
+          navigate(workspacePath(activeWorkspaceId), { replace: true });
+        }
+      } else {
+        navigate(redirectTo, { replace: true });
+      }
     } else if (needsWorkspaceSetup) {
       navigate("/company-setup", { replace: true });
     } else if (needsWorkspaceChoice || !activeWorkspaceId) {

@@ -96,18 +96,21 @@ export function ProtectedRoute({
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
   if (requireSuperAdmin) {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
     const isSuper =
-      user?.isSuperAdmin === true ||
-      user?.email?.toLowerCase() === "info@namehostclub.com";
+      user?.email?.toLowerCase().trim() === "info@namehostclub.com" &&
+      user?.isSuperAdmin === true;
     if (!isSuper) {
       return <Navigate to="/workspaces" replace />;
     }
     return <>{children}</>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   if (workspaceError && memberships.length === 0) {
     return (
