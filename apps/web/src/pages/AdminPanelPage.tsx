@@ -499,9 +499,9 @@ export function AdminPanelPage() {
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-dark-border text-left">
                   <thead className="bg-slate-50 dark:bg-dark-tertiary text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-dark-text-secondary">
                     <tr>
-                      <th className="px-5 py-3.5">User</th>
+                      <th className="px-5 py-3.5">User, Workspaces & Storage</th>
                       <th className="px-5 py-3.5">Status</th>
-                      <th className="px-5 py-3.5">Workspaces & Roles</th>
+                      <th className="px-5 py-3.5">Storage & Activity</th>
                       <th className="px-5 py-3.5">Verified</th>
                       <th className="px-5 py-3.5">Registered</th>
                       <th className="px-5 py-3.5 text-right">Actions</th>
@@ -526,35 +526,74 @@ export function AdminPanelPage() {
                             className="hover:bg-slate-50/70 dark:hover:bg-dark-tertiary/50 transition-colors"
                           >
                             <td className="px-5 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <div className="flex items-start gap-3">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                                   {u.name?.slice(0, 1).toUpperCase() ||
                                     u.email.slice(0, 1).toUpperCase()}
                                 </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-slate-900 dark:text-white">
-                                      {u.name || "Unnamed"}
-                                    </span>
-                                    {u.isSuperAdmin && (
-                                      <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                                        Super Admin
+                                <div className="min-w-0 flex-1 space-y-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-semibold text-slate-900 dark:text-white">
+                                        {u.name || "Unnamed"}
                                       </span>
-                                    )}
-                                    {isSelf && (
-                                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                                        You
-                                      </span>
-                                    )}
+                                      {u.isSuperAdmin && (
+                                        <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                          Super Admin
+                                        </span>
+                                      )}
+                                      {isSelf && (
+                                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                          You
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-dark-text-secondary">
+                                      {u.email}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-slate-500 dark:text-dark-text-secondary">
-                                    {u.email}
-                                  </p>
+
+                                  {/* Workspaces & Storage directly under the user */}
+                                  <div className="pt-1.5 border-t border-slate-100 dark:border-dark-border/60">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {u.workspaces.length === 0 ? (
+                                        <span className="text-xs text-slate-400 italic">
+                                          No workspaces assigned
+                                        </span>
+                                      ) : (
+                                        u.workspaces.map((w) => (
+                                          <div
+                                            key={w.companyId}
+                                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/80 bg-slate-50 px-2 py-1 text-xs text-slate-700 dark:border-dark-border dark:bg-dark-tertiary dark:text-dark-text-primary shadow-xs"
+                                          >
+                                            <Building2 className="h-3 w-3 text-slate-400" />
+                                            <span className="font-medium text-slate-800 dark:text-slate-200">
+                                              {w.companyName}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 capitalize">
+                                              ({w.role})
+                                            </span>
+                                            <span className="text-slate-300 dark:text-slate-600">·</span>
+                                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                                              <HardDrive className="h-3 w-3" />
+                                              {formatBytes(w.storageBytes || 0)}
+                                            </span>
+                                          </div>
+                                        ))
+                                      )}
+                                      {u.workspaces.length > 0 && (
+                                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                          Total: {formatBytes(u.totalStorageBytes || 0)}
+                                          {u.totalMessages ? ` (${u.totalMessages.toLocaleString()} msgs)` : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </td>
 
-                            <td className="px-5 py-4">
+                            <td className="px-5 py-4 align-top">
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                                   u.isActive
@@ -576,25 +615,15 @@ export function AdminPanelPage() {
                               </span>
                             </td>
 
-                            <td className="px-5 py-4">
-                              <div className="flex flex-wrap gap-1.5 max-w-xs">
-                                {u.workspaces.length === 0 ? (
-                                  <span className="text-xs text-slate-400">
-                                    No workspaces
-                                  </span>
-                                ) : (
-                                  u.workspaces.map((w) => (
-                                    <span
-                                      key={w.companyId}
-                                      className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-dark-tertiary dark:text-dark-text-primary"
-                                    >
-                                      {w.companyName}
-                                      <span className="text-[10px] text-slate-400 capitalize">
-                                        ({w.role})
-                                      </span>
-                                    </span>
-                                  ))
-                                )}
+                            <td className="px-5 py-4 align-top">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
+                                  <HardDrive className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                  <span>{formatBytes(u.totalStorageBytes || 0)}</span>
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-dark-text-secondary">
+                                  {(u.totalMessages || 0).toLocaleString()} messages
+                                </p>
                               </div>
                             </td>
 

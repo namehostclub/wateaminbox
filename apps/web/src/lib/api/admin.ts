@@ -31,6 +31,15 @@ export interface AdminOverview {
   }>;
 }
 
+export interface AdminUserWorkspace {
+  companyId: string;
+  companyName: string;
+  role: string;
+  joinedAt: string;
+  storageBytes?: number;
+  totalMessages?: number;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -42,12 +51,9 @@ export interface AdminUser {
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string | null;
-  workspaces: Array<{
-    companyId: string;
-    companyName: string;
-    role: string;
-    joinedAt: string;
-  }>;
+  workspaces: AdminUserWorkspace[];
+  totalStorageBytes?: number;
+  totalMessages?: number;
 }
 
 export interface WorkspaceUsage {

@@ -190,7 +190,7 @@ adminRoutes.get("/users", async (c) => {
     );
   }
 
-  const [usersRaw, memberships, lastSessions] = await Promise.all([
+  const [usersRaw, memberships, lastSessions, companies] = await Promise.all([
     query.execute(),
     db
       .selectFrom("company_members as cm")
@@ -208,7 +208,45 @@ adminRoutes.get("/users", async (c) => {
       .select(["user_id", sql<Date>`max(last_active_at)`.as("last_active_at")])
       .groupBy("user_id")
       .execute(),
+    db
+      .selectFrom("companies")
+      .select(["id", "schema_name", "status"])
+      .where("status", "!=", "deleted")
+      .execute(),
   ]);
+
+  // Query per-workspace storage and message stats
+  const workspaceStatsMap = new Map<
+    string,
+    { storageBytes: number; totalMessages: number }
+  >();
+
+  for (const company of companies) {
+    if (!company.schema_name) continue;
+    const exists = await tenantSchemaExists(company.schema_name);
+    if (!exists) continue;
+
+    try {
+      const stats = await sql<{
+        total_messages: string | number;
+        media_bytes: string | number;
+      }>`
+        SELECT 
+          (SELECT count(*) FROM ${sql.raw(`"${company.schema_name}".messages`)}) as total_messages,
+          (SELECT coalesce(sum(media_size), 0) FROM ${sql.raw(`"${company.schema_name}".messages`)}) as media_bytes
+      `.execute(db);
+
+      const row = stats.rows[0];
+      if (row) {
+        workspaceStatsMap.set(company.id, {
+          storageBytes: Number(row.media_bytes || 0),
+          totalMessages: Number(row.total_messages || 0),
+        });
+      }
+    } catch {
+      // Skip if individual schema has unmigrated tables or is locked
+    }
+  }
 
   const membershipsByUser = new Map<
     string,
@@ -217,16 +255,21 @@ adminRoutes.get("/users", async (c) => {
       companyName: string;
       role: string;
       joinedAt: Date;
+      storageBytes: number;
+      totalMessages: number;
     }>
   >();
 
   for (const m of memberships) {
     const list = membershipsByUser.get(m.user_id) || [];
+    const stats = workspaceStatsMap.get(m.company_id);
     list.push({
       companyId: m.company_id,
       companyName: m.company_name,
       role: m.role,
       joinedAt: m.joined_at,
+      storageBytes: stats?.storageBytes ?? 0,
+      totalMessages: stats?.totalMessages ?? 0,
     });
     membershipsByUser.set(m.user_id, list);
   }
@@ -250,12 +293,24 @@ adminRoutes.get("/users", async (c) => {
         isSuperAdmin: u.is_super_admin,
       });
 
+      const userWorkspaces = membershipsByUser.get(u.id) || [];
+      const totalStorageBytes = userWorkspaces.reduce(
+        (sum, w) => sum + (w.storageBytes || 0),
+        0,
+      );
+      const totalMessages = userWorkspaces.reduce(
+        (sum, w) => sum + (w.totalMessages || 0),
+        0,
+      );
+
       return {
         ...publicUser,
         createdAt: u.created_at,
         updatedAt: u.updated_at,
         lastActiveAt: lastActiveByUser.get(u.id) || null,
-        workspaces: membershipsByUser.get(u.id) || [],
+        workspaces: userWorkspaces,
+        totalStorageBytes,
+        totalMessages,
       };
     }),
   );
