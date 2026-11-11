@@ -223,7 +223,7 @@ adminRoutes.get("/users", async (c) => {
 
   for (const company of companies) {
     if (!company.schema_name) continue;
-    const exists = await tenantSchemaExists(company.schema_name);
+    const exists = await tenantSchemaExists(company.id);
     if (!exists) continue;
 
     try {
