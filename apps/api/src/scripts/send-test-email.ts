@@ -43,3 +43,4 @@ if (result.success) {
   console.error(`[send-test-email] Error: ${result.error}`);
   process.exit(1);
 }
+

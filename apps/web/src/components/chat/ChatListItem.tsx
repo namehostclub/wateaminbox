@@ -1,4 +1,4 @@
-import { formatChatListTime, isChannel } from "@wateaminbox/shared";
+import { formatChatListTime } from "@wateaminbox/shared";
 import { MessagesSquare, Users } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,10 +10,6 @@ import {
   formatPhoneNumber,
 } from "@/lib/utils";
 import type { ChatListItemProps } from "../../types/chat";
-import {
-  ChannelAvatarBadge,
-  MergedCustomerAvatarBadge,
-} from "./ChannelIdentity";
 import { ConnectionBadge } from "./ConnectionIdentity";
 import { ConversationStatusBadge } from "./ConversationStatusBadge";
 import { resolveMentionNames } from "./group-mentions";
@@ -199,39 +195,6 @@ export const ChatListItem = memo(function ChatListItem({
             />
           )}
         </div>
-        {/* Channel mark - which app this conversation arrived on. Sits in the
-            corner the platform badge occupies everywhere else, so presence
-            moves to the opposite corner rather than stacking with it. */}
-        {(chat.chatCount ?? 1) > 1 ? (
-          // A merged customer has no single channel to mark: whichever thread
-          // spoke last would keep changing the badge on a row that is meant to
-          // stand for the person.
-          <MergedCustomerAvatarBadge
-            channelCount={chat.chatCount ?? 1}
-            className="absolute -bottom-0.5 -right-0.5"
-          />
-        ) : (
-          (contact.channel || contact.connection) && (
-            <ChannelAvatarBadge
-              channel={
-                contact.channel && isChannel(contact.channel)
-                  ? contact.channel
-                  : "whatsapp"
-              }
-              className="absolute -bottom-0.5 -right-0.5"
-            />
-          )
-        )}
-        {/* Group Indicator Overlay - distinct badge on avatar for groups */}
-        {contact.isGroup && (
-          <span
-            className="absolute -top-1 -left-1 p-0.5 bg-emerald-600 text-white rounded-full shadow-sm ring-2 ring-white dark:ring-dark-secondary"
-            title={t("chat.groupBadge", "Group")}
-            aria-label={t("chat.groupBadge", "Group")}
-          >
-            <Users className="w-3 h-3" />
-          </span>
-        )}
         {/* Online Indicator - only for individual contacts */}
         {!contact.isGroup && contact.isOnline && (
           <span
