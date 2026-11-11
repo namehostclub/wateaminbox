@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
@@ -7,9 +7,12 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
+  ChevronDown,
+  Copy,
   Database,
   HardDrive,
   KeyRound,
+  Mail,
   MessageSquare,
   RefreshCw,
   Search,
@@ -39,6 +42,163 @@ export function formatBytes(bytes: number, decimals = 1): string {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+interface UserActionsDropdownProps {
+  user: AdminUser;
+  isSelf: boolean;
+  onResetPassword: (user: AdminUser) => void;
+  onToggleStatus: (user: AdminUser, targetActive: boolean) => void;
+}
+
+function UserActionsDropdown({
+  user,
+  isSelf,
+  onResetPassword,
+  onToggleStatus,
+}: UserActionsDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(user.email);
+    toast.success("Email copied to clipboard");
+    setIsOpen(false);
+  };
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(user.id);
+    toast.success("User ID copied to clipboard");
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative inline-block text-left">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-dark-border dark:bg-dark-tertiary dark:text-dark-text-primary dark:hover:bg-dark-elevated"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+      >
+        <span>Actions</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-emerald-600" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          role="menu"
+          aria-orientation="vertical"
+          className="absolute right-0 top-full z-50 mt-1.5 w-52 origin-top-right rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl ring-1 ring-black/5 focus:outline-none dark:border-dark-border dark:bg-dark-elevated dark:ring-white/10"
+        >
+          {/* Action: Reset Password */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              onResetPassword(user);
+            }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:text-dark-text-primary dark:hover:bg-dark-tertiary"
+          >
+            <KeyRound className="h-4 w-4 text-slate-500" />
+            <span>Reset Password</span>
+          </button>
+
+          {/* Action: Toggle Active / Deactivate */}
+          {!isSelf ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setIsOpen(false);
+                onToggleStatus(user, !user.isActive);
+              }}
+              className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition ${
+                user.isActive
+                  ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                  : "text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+              }`}
+            >
+              {user.isActive ? (
+                <>
+                  <UserX className="h-4 w-4 text-red-500" />
+                  <span>Deactivate Account</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-4 w-4 text-emerald-500" />
+                  <span>Activate Account</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-400 cursor-not-allowed dark:text-slate-600"
+              title="Cannot deactivate your own account"
+            >
+              <UserX className="h-4 w-4 opacity-50" />
+              <span>Deactivate (Self)</span>
+            </div>
+          )}
+
+          <div className="my-1 border-t border-slate-100 dark:border-dark-border" />
+
+          {/* Action: Copy Email */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleCopyEmail}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:text-dark-text-secondary dark:hover:bg-dark-tertiary"
+          >
+            <Mail className="h-4 w-4 text-slate-400" />
+            <span>Copy Email Address</span>
+          </button>
+
+          {/* Action: Copy User ID */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleCopyId}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:text-dark-text-secondary dark:hover:bg-dark-tertiary"
+          >
+            <Copy className="h-4 w-4 text-slate-400" />
+            <span>Copy User ID</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdminPanelPage() {
@@ -495,16 +655,16 @@ export function AdminPanelPage() {
               </div>
 
               {/* Users Table */}
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-secondary">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-dark-border dark:bg-dark-secondary min-h-[340px]">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-dark-border text-left">
                   <thead className="bg-slate-50 dark:bg-dark-tertiary text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-dark-text-secondary">
                     <tr>
-                      <th className="px-5 py-3.5">User, Workspaces & Storage</th>
+                      <th className="px-5 py-3.5 rounded-tl-xl">User, Workspaces & Storage</th>
                       <th className="px-5 py-3.5">Status</th>
                       <th className="px-5 py-3.5">Storage & Activity</th>
                       <th className="px-5 py-3.5">Verified</th>
                       <th className="px-5 py-3.5">Registered</th>
-                      <th className="px-5 py-3.5 text-right">Actions</th>
+                      <th className="px-5 py-3.5 text-right rounded-tr-xl">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-dark-border text-sm">
@@ -645,51 +805,22 @@ export function AdminPanelPage() {
                               {new Date(u.createdAt).toLocaleDateString()}
                             </td>
 
-                            <td className="px-5 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {/* Reset Password Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPasswordResetUser(u);
+                            <td className="px-5 py-4 text-right align-top">
+                              <div className="flex items-center justify-end">
+                                <UserActionsDropdown
+                                  user={u}
+                                  isSelf={isSelf}
+                                  onResetPassword={(targetUser) => {
+                                    setPasswordResetUser(targetUser);
                                     setNewPassword("");
                                   }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-dark-border dark:bg-dark-tertiary dark:text-dark-text-primary dark:hover:bg-dark-elevated"
-                                  title="Reset user password"
-                                >
-                                  <KeyRound className="h-3.5 w-3.5 text-slate-500" />
-                                  Password
-                                </button>
-
-                                {/* Toggle Active / Deactivate Button */}
-                                {!isSelf && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setStatusConfirmUser({
-                                        user: u,
-                                        targetActive: !u.isActive,
-                                      })
-                                    }
-                                    className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold shadow-sm transition ${
-                                      u.isActive
-                                        ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-                                        : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                    }`}
-                                  >
-                                    {u.isActive ? (
-                                      <>
-                                        <UserX className="h-3.5 w-3.5" />
-                                        Deactivate
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="h-3.5 w-3.5" />
-                                        Activate
-                                      </>
-                                    )}
-                                  </button>
-                                )}
+                                  onToggleStatus={(targetUser, targetActive) => {
+                                    setStatusConfirmUser({
+                                      user: targetUser,
+                                      targetActive,
+                                    });
+                                  }}
+                                />
                               </div>
                             </td>
                           </tr>
