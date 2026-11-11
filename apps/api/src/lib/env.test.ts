@@ -141,7 +141,7 @@ describe("production environment validation", () => {
 
   test("rejects non-delivering or placeholder mail configuration", () => {
     expectInvalid({ MAIL_DRIVER: "log" }, /must deliver mail in production/);
-    expectInvalid({ MAIL_DRIVER: "smtp" }, /MAIL_DRIVER must be one of/);
+    expectInvalid({ MAIL_DRIVER: "unsupported" }, /MAIL_DRIVER must be one of/);
     expectInvalid({ RESEND_API_KEY: "re_xxxxxxxxxxxxx" }, /placeholder value/);
     expectInvalid({ EMAIL_FROM: "not-an-email" }, /valid email address/);
     expectInvalid(
@@ -209,6 +209,39 @@ describe("production environment validation", () => {
     test("rejects a placeholder Cloudflare token", () => {
       expectInvalid(
         { ...cloudflare, CLOUDFLARE_EMAIL_API_TOKEN: "replace-with-token" },
+        /placeholder value/,
+      );
+    });
+
+    const smtp = {
+      MAIL_DRIVER: "smtp",
+      SMTP_HOST: "smtp.yandex.com",
+      SMTP_PORT: 465,
+      SMTP_SECURE: true,
+      SMTP_USER: "hello@ayyansystems.com",
+      SMTP_PASSWORD: "live-app-password-1234",
+      RESEND_API_KEY: "",
+      CLOUDFLARE_ACCOUNT_ID: "",
+      CLOUDFLARE_EMAIL_API_TOKEN: "",
+    } as const;
+
+    test("accepts SMTP without any Resend or Cloudflare credentials", () => {
+      expect(() => validateProductionEnv(productionEnv(smtp))).not.toThrow();
+    });
+
+    test.each(["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"] as const)(
+      "requires SMTP setting %s",
+      (key) => {
+        expectInvalid(
+          { ...smtp, [key]: "" },
+          /Missing required production environment variables/,
+        );
+      },
+    );
+
+    test("rejects a placeholder SMTP password", () => {
+      expectInvalid(
+        { ...smtp, SMTP_PASSWORD: "change-me" },
         /placeholder value/,
       );
     });

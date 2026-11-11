@@ -2,9 +2,10 @@ import { env } from "../env.js";
 import { CloudflareMailDriver } from "./drivers/cloudflare.js";
 import { LogMailDriver } from "./drivers/log.js";
 import { ResendMailDriver } from "./drivers/resend.js";
+import { SmtpMailDriver } from "./drivers/smtp.js";
 import type { EmailOptions, EmailResult, MailDriver } from "./types.js";
 
-export type MailDriverName = "log" | "resend" | "cloudflare";
+export type MailDriverName = "log" | "resend" | "cloudflare" | "smtp";
 
 export function createMailDriver(name: string = env.MAIL_DRIVER): MailDriver {
   switch (name) {
@@ -21,9 +22,18 @@ export function createMailDriver(name: string = env.MAIL_DRIVER): MailDriver {
         apiToken: env.CLOUDFLARE_EMAIL_API_TOKEN,
         from: env.EMAIL_FROM,
       });
+    case "smtp":
+      return new SmtpMailDriver({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_SECURE,
+        user: env.SMTP_USER,
+        password: env.SMTP_PASSWORD,
+        from: env.EMAIL_FROM,
+      });
     default:
       throw new Error(
-        `Unsupported MAIL_DRIVER "${name}". Expected one of: log, resend, cloudflare`,
+        `Unsupported MAIL_DRIVER "${name}". Expected one of: log, resend, cloudflare, smtp`,
       );
   }
 }

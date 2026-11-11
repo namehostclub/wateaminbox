@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { CloudflareMailDriver } from "./drivers/cloudflare.js";
 import { LogMailDriver } from "./drivers/log.js";
 import { ResendMailDriver } from "./drivers/resend.js";
+import { SmtpMailDriver } from "./drivers/smtp.js";
 import { createMailDriver } from "./index.js";
 
 const message = {
@@ -16,6 +17,7 @@ describe("mail drivers", () => {
     expect(createMailDriver("log")).toBeInstanceOf(LogMailDriver);
     expect(createMailDriver("resend")).toBeInstanceOf(ResendMailDriver);
     expect(createMailDriver("cloudflare")).toBeInstanceOf(CloudflareMailDriver);
+    expect(createMailDriver("smtp")).toBeInstanceOf(SmtpMailDriver);
     expect(() => createMailDriver("unknown")).toThrow(
       'Unsupported MAIL_DRIVER "unknown"',
     );

@@ -122,6 +122,12 @@ export const env = {
   // Email Sending: Edit permission on the account that owns the sender domain.
   CLOUDFLARE_ACCOUNT_ID: getEnv("CLOUDFLARE_ACCOUNT_ID", ""),
   CLOUDFLARE_EMAIL_API_TOKEN: getEnv("CLOUDFLARE_EMAIL_API_TOKEN", ""),
+  // SMTP (MAIL_DRIVER=smtp)
+  SMTP_HOST: getEnv("SMTP_HOST", ""),
+  SMTP_PORT: getEnvSafePositiveInteger("SMTP_PORT", 465, 65535),
+  SMTP_SECURE: getEnvBoolean("SMTP_SECURE", true),
+  SMTP_USER: getEnv("SMTP_USER", ""),
+  SMTP_PASSWORD: getEnv("SMTP_PASSWORD", ""),
   EMAIL_FROM: getEnv("EMAIL_FROM", "noreply@example.com"),
   FEEDBACK_TO_EMAIL: getEnv("FEEDBACK_TO_EMAIL", "contact@wateaminbox.com"),
 
@@ -260,9 +266,9 @@ export const env = {
 
 export type Env = typeof env;
 
-const mailDrivers = ["log", "resend", "cloudflare"];
+const mailDrivers = ["log", "resend", "cloudflare", "smtp"];
 /** Drivers that actually hand a message to a provider. */
-const deliveringMailDrivers = ["resend", "cloudflare"];
+const deliveringMailDrivers = ["resend", "cloudflare", "smtp"];
 
 const unsafeCredentialValues = new Set([
   "admin",
@@ -464,6 +470,13 @@ function requiredMailCredentials(config: Env): Record<string, string> {
       CLOUDFLARE_EMAIL_API_TOKEN: config.CLOUDFLARE_EMAIL_API_TOKEN,
     };
   }
+  if (config.MAIL_DRIVER === "smtp") {
+    return {
+      SMTP_HOST: config.SMTP_HOST,
+      SMTP_USER: config.SMTP_USER,
+      SMTP_PASSWORD: config.SMTP_PASSWORD,
+    };
+  }
   if (config.MAIL_DRIVER === "log") {
     return {};
   }
@@ -495,6 +508,17 @@ function validateMailCredentials(config: Env): void {
       "CLOUDFLARE_EMAIL_API_TOKEN",
       config.CLOUDFLARE_EMAIL_API_TOKEN,
     );
+    return;
+  }
+
+  if (config.MAIL_DRIVER === "smtp") {
+    if (!config.SMTP_HOST.trim()) {
+      throw new Error("SMTP_HOST is required when MAIL_DRIVER=smtp");
+    }
+    if (!config.SMTP_USER.trim()) {
+      throw new Error("SMTP_USER is required when MAIL_DRIVER=smtp");
+    }
+    assertCredentialIsSafe("SMTP_PASSWORD", config.SMTP_PASSWORD);
     return;
   }
 

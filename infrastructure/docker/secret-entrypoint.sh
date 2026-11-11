@@ -28,6 +28,16 @@ if [ -n "${RESEND_API_KEY_FILE:-}" ] &&
   echo "secret-entrypoint: RESEND_API_KEY_FILE and CLOUDFLARE_EMAIL_API_TOKEN_FILE both name ${RESEND_API_KEY_FILE}; configure only the mail provider named by MAIL_DRIVER" >&2
   exit 1
 fi
+if [ -n "${RESEND_API_KEY_FILE:-}" ] &&
+  [ "${RESEND_API_KEY_FILE:-}" = "${SMTP_PASSWORD_FILE:-}" ]; then
+  echo "secret-entrypoint: RESEND_API_KEY_FILE and SMTP_PASSWORD_FILE both name ${RESEND_API_KEY_FILE}; configure only the mail provider named by MAIL_DRIVER" >&2
+  exit 1
+fi
+if [ -n "${CLOUDFLARE_EMAIL_API_TOKEN_FILE:-}" ] &&
+  [ "${CLOUDFLARE_EMAIL_API_TOKEN_FILE:-}" = "${SMTP_PASSWORD_FILE:-}" ]; then
+  echo "secret-entrypoint: CLOUDFLARE_EMAIL_API_TOKEN_FILE and SMTP_PASSWORD_FILE both name ${CLOUDFLARE_EMAIL_API_TOKEN_FILE}; configure only the mail provider named by MAIL_DRIVER" >&2
+  exit 1
+fi
 
 for name in \
   POSTGRES_PASSWORD DATABASE_URL WORKER_POSTGRES_PASSWORD WORKER_DATABASE_URL \
@@ -35,6 +45,7 @@ for name in \
   JWT_SECRET CHANNEL_CREDENTIAL_ENCRYPTION_KEYS S3_ACCESS_KEY S3_SECRET_KEY \
   CENTRIFUGO_API_KEY CENTRIFUGO_TOKEN_HMAC_SECRET \
   RESEND_API_KEY CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_EMAIL_API_TOKEN \
+  SMTP_PASSWORD \
   VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY; do
   load_secret "$name"
 done

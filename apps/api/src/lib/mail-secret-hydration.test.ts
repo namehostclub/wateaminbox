@@ -144,6 +144,31 @@ describe("production secret hydration", () => {
     );
   });
 
+  test("hydrates the SMTP password from secret file", async () => {
+    const { exitCode, variables } = await runEntrypoint({
+      MAIL_DRIVER: "smtp",
+      SMTP_PASSWORD_FILE: secretFile("smtp_password", "live_smtp_password"),
+      RESEND_API_KEY_FILE: "",
+      CLOUDFLARE_EMAIL_API_TOKEN_FILE: "",
+    });
+
+    expect(exitCode).toBe(0);
+    expect(variables.get("SMTP_PASSWORD")).toBe("live_smtp_password");
+    expect(variables.has("SMTP_PASSWORD_FILE")).toBe(false);
+  });
+
+  test("refuses when SMTP_PASSWORD_FILE and RESEND_API_KEY_FILE name the same file", async () => {
+    const mount = secretFile("ambiguous_smtp_key", "same_key");
+    const { exitCode, stderr } = await runEntrypoint({
+      MAIL_DRIVER: "smtp",
+      SMTP_PASSWORD_FILE: mount,
+      RESEND_API_KEY_FILE: mount,
+    });
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/configure only the mail provider named by MAIL_DRIVER/);
+  });
+
   test("keeps HTTP bearer authority file-only for the orchestrator", async () => {
     const tokenFile = secretFile(
       "orchestrator_http_bearer_token",
