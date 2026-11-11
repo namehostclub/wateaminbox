@@ -207,7 +207,13 @@ export function registerRealtimeEventHandlers({
   // is enforced by the inbox scheduler: mark stale synchronously, coalesce
   // bursts, and queue a follow-up for events arriving during a request. The
   // contact-sync batch feeds the same scheduler after its larger sync burst.
-  const refreshChatList = () => invalidateChatList(qc);
+  const refreshChatList = () => {
+    invalidateChatList(qc);
+    qc.invalidateQueries({
+      queryKey: ["analytics", "dashboard"],
+      refetchType: "active",
+    });
+  };
 
   return [
     contactRefresh.cancel,

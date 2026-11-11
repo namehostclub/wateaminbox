@@ -594,6 +594,8 @@
     "sentToday": "Sent Today",
     "receivedToday": "Received Today",
     "unread": "Unread",
+    "storageUsage": "Storage Usage",
+    "liveRealTime": "Live Real-Time",
     "charts": {
       "loadFailed": "This chart could not be loaded",
       "dataLoadFailed": "Failed to load data",

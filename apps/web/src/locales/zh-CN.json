@@ -590,6 +590,8 @@
     "sentToday": "今日已发送",
     "receivedToday": "今日已接收",
     "unread": "未读",
+    "storageUsage": "存储使用量",
+    "liveRealTime": "实时同步",
     "charts": {
       "loadFailed": "无法加载该图表",
       "dataLoadFailed": "加载数据失败",

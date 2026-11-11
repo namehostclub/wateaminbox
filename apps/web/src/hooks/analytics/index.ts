@@ -14,6 +14,7 @@ export {
   type EngagementMetrics,
   type EngagementTrend,
   formatDate,
+  formatBytes,
   // Utilities
   formatNumber,
   type HourlyStats,

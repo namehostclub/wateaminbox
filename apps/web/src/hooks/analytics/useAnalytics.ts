@@ -25,6 +25,10 @@ export interface DashboardStats {
   messagesSentToday: number;
   messagesReceivedToday: number;
   unreadConversations: number;
+  storageBytes?: number;
+  storageLimitBytes?: number;
+  storageUsagePercent?: number;
+  storageMediaFiles?: number;
 }
 
 /**
@@ -134,9 +138,10 @@ export function useDashboardStats(companyId: string | null) {
       return api.get<DashboardStats>("/analytics/dashboard");
     },
     enabled: !!companyId,
-    staleTime: 60_000, // 1 minute
+    staleTime: 5_000, // 5 seconds for real-time responsiveness
     gcTime: 300_000, // 5 minutes
-    refetchInterval: 60_000, // Refresh every minute
+    refetchInterval: 15_000, // Refresh automatically every 15 seconds
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -285,6 +290,18 @@ export function formatNumber(num: number): string {
     return `${(num / 1_000).toFixed(1)}K`;
   }
   return num.toString();
+}
+
+/**
+ * Format bytes for display (e.g. 1.2 GB, 397.8 MB)
+ */
+export function formatBytes(bytes: number, decimals = 1): string {
+  if (!bytes || bytes === 0) return "0 B";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
 /**

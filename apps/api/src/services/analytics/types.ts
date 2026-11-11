@@ -12,6 +12,10 @@ export interface DashboardStats {
   messagesSentToday: number;
   messagesReceivedToday: number;
   unreadConversations: number;
+  storageBytes: number;
+  storageLimitBytes: number;
+  storageUsagePercent: number;
+  storageMediaFiles: number;
 }
 
 /**
