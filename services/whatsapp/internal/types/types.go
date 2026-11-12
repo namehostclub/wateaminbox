@@ -110,3 +110,9 @@ type Product struct {
 	URL          string   `json:"url,omitempty"`
 	RetailerID   string   `json:"retailerId,omitempty"`
 }
+
+// ReadMessageItem represents an individual message to mark as read.
+type ReadMessageItem struct {
+	ID     string `json:"id"`
+	Sender string `json:"sender,omitempty"`
+}

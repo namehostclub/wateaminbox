@@ -169,6 +169,7 @@ type CommandExecutor interface {
 	ApplyLabel(ctx context.Context, contactJID, labelID string, labeled bool) error
 	SyncCatalog(ctx context.Context, catalogID string) (types.Catalog, error)
 	RequestHistory(ctx context.Context, chatJID, oldestMessageID string, oldestFromMe bool, oldestTimestamp time.Time, count int) error
+	MarkChatRead(ctx context.Context, chatJID string, messages []types.ReadMessageItem, lastMessageTimestamp time.Time, lastMessageID string) error
 	GroupCommandExecutor
 }
 
@@ -270,6 +271,16 @@ type RequestHistoryCommand struct {
 	OldestTimestamp string `json:"oldest_timestamp"`
 	Count           int    `json:"count"`
 	CommandID       string `json:"command_id"`
+}
+
+type MarkReadCommand struct {
+	Type                 string                  `json:"type"`
+	ChatJID              string                  `json:"chat_jid"`
+	Messages             []types.ReadMessageItem `json:"messages,omitempty"`
+	MessageIDs           []string                `json:"message_ids,omitempty"`
+	LastMessageTimestamp string                  `json:"last_message_timestamp,omitempty"`
+	LastMessageID        string                  `json:"last_message_id,omitempty"`
+	CommandID            string                  `json:"command_id,omitempty"`
 }
 
 // CommandEventPublisher publishes durable outcomes produced by commands.
@@ -469,6 +480,8 @@ func (s *Subscriber) handleCommand(msg *nats.Msg) {
 		s.handleCatalogCommand(msg, ct.Type)
 	case "request_history":
 		s.handleRequestHistoryCommand(msg)
+	case "mark_read":
+		s.handleMarkReadCommand(msg)
 	case "spawn", "kill", "status":
 		// These commands are consumed by the orchestrator. A worker can also see
 		// them because both consumers subscribe to its connection subject; ACK so
@@ -511,6 +524,60 @@ func (s *Subscriber) handleRequestHistoryCommand(msg *nats.Msg) {
 	}
 	if s.publisher != nil && cmd.CommandID != "" {
 		if err = s.publisher.PublishCommandResult(
+			cmd.CommandID, cmd.Type, true, sharednats.CommandOutcomeSucceeded, "",
+		); err != nil {
+			s.retryCommand(msg, cmd.Type, err)
+			return
+		}
+	}
+	msg.Ack()
+}
+
+func (s *Subscriber) handleMarkReadCommand(msg *nats.Msg) {
+	var cmd MarkReadCommand
+	if err := json.Unmarshal(msg.Data, &cmd); err != nil {
+		s.retryCommand(msg, "mark_read", err)
+		return
+	}
+	if s.executor == nil {
+		s.retryCommand(msg, cmd.Type, fmt.Errorf("command executor not configured"))
+		return
+	}
+
+	var timestamp time.Time
+	if cmd.LastMessageTimestamp != "" {
+		var err error
+		timestamp, err = time.Parse(time.RFC3339Nano, cmd.LastMessageTimestamp)
+		if err != nil {
+			timestamp, err = time.Parse(time.RFC3339, cmd.LastMessageTimestamp)
+			if err != nil {
+				log.Printf("Could not parse last_message_timestamp %q: %v", cmd.LastMessageTimestamp, err)
+				timestamp = time.Now()
+			}
+		}
+	} else {
+		timestamp = time.Now()
+	}
+
+	messages := cmd.Messages
+	if len(messages) == 0 && len(cmd.MessageIDs) > 0 {
+		for _, id := range cmd.MessageIDs {
+			if id != "" {
+				messages = append(messages, types.ReadMessageItem{ID: id})
+			}
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
+	defer cancel()
+
+	if err := s.executor.MarkChatRead(ctx, cmd.ChatJID, messages, timestamp, cmd.LastMessageID); err != nil {
+		s.retryCommand(msg, cmd.Type, err)
+		return
+	}
+
+	if s.publisher != nil && cmd.CommandID != "" {
+		if err := s.publisher.PublishCommandResult(
 			cmd.CommandID, cmd.Type, true, sharednats.CommandOutcomeSucceeded, "",
 		); err != nil {
 			s.retryCommand(msg, cmd.Type, err)

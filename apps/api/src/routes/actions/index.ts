@@ -10,7 +10,10 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { NoActiveCaseError } from "../../lib/errors.js";
 import { createLogger, formatError } from "../../lib/logger.js";
-import { publishTypingCommand } from "../../lib/nats/index.js";
+import {
+  publishMarkChatReadCommand,
+  publishTypingCommand,
+} from "../../lib/nats/index.js";
 import { zValidator } from "../../lib/validator.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { requireMessageSendPermission } from "../../middleware/message-send-policy.js";
@@ -210,7 +213,7 @@ actionsRoutes.post(
     // requireContactVisibility: never disclose which of the two it was.
     const contact = await tenantDb
       .selectFrom("contacts")
-      .select("id")
+      .select(["id", "jid", "whatsapp_connection_id"])
       .where("id", "=", conversationId)
       .executeTakeFirst();
     if (!contact || !(await hasContactVisibility(c, conversationId))) {
@@ -218,6 +221,54 @@ actionsRoutes.post(
     }
 
     try {
+      // Update unread incoming messages in database
+      if (messageIds && messageIds.length > 0) {
+        await tenantDb
+          .updateTable("messages")
+          .set({ status: "read" })
+          .where("contact_id", "=", contact.id)
+          .where("message_id", "in", messageIds)
+          .execute();
+      } else {
+        await tenantDb
+          .updateTable("messages")
+          .set({ status: "read" })
+          .where("contact_id", "=", contact.id)
+          .where((eb) =>
+            eb.or([
+              eb("direction", "=", "inbound"),
+              eb("from_me", "=", false),
+            ]),
+          )
+          .where("status", "!=", "read")
+          .execute();
+      }
+
+      // Dispatch WhatsApp read command if WhatsApp channel
+      if (
+        contact.whatsapp_connection_id &&
+        contact.jid &&
+        (contact.jid.endsWith("@s.whatsapp.net") ||
+          contact.jid.endsWith("@g.us") ||
+          contact.jid.endsWith("@lid"))
+      ) {
+        try {
+          const sessionId = await getActiveSessionId(
+            tenantDb,
+            contact.whatsapp_connection_id,
+          );
+          await publishMarkChatReadCommand(companyId, sessionId, {
+            chatJid: contact.jid,
+            messageIds: messageIds && messageIds.length > 0 ? messageIds : undefined,
+          });
+        } catch (err) {
+          logger.warn(
+            { err: formatError(err), contactId: contact.id },
+            "Could not dispatch WhatsApp mark read command",
+          );
+        }
+      }
+
       // Broadcast read event to other clients
       await broadcastToContactViewers(
         companyId,

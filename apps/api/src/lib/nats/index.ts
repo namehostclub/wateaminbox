@@ -13,6 +13,8 @@ export {
   publishApplyLabel,
   publishCommand,
   publishKillCommand,
+  publishMarkChatReadCommand,
+  type PublishMarkChatReadOptions,
   publishOutboxCommand,
   publishPostStatus,
   publishRemoveLabel,

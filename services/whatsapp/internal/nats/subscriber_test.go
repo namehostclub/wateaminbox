@@ -62,6 +62,11 @@ type mockCommandExecutor struct {
 	historyFromMe      bool
 	historyTimestamp   time.Time
 	historyCount       int
+	readJID            string
+	readMessages       []types.ReadMessageItem
+	readTimestamp      time.Time
+	readLastMsgID      string
+	readCalls          int
 	// err, when set, fails every group operation.
 	err error
 	// settingsErr fails ONLY the settings write, modelling WhatsApp applying
@@ -164,6 +169,17 @@ func (m *mockCommandExecutor) RequestHistory(_ context.Context, jid, id string, 
 	m.historyFromMe = fromMe
 	m.historyTimestamp = timestamp
 	m.historyCount = count
+	return nil
+}
+func (m *mockCommandExecutor) MarkChatRead(_ context.Context, chatJID string, messages []types.ReadMessageItem, lastMessageTimestamp time.Time, lastMessageID string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.readCalls++
+	m.readJID = chatJID
+	m.readMessages = messages
+	m.readTimestamp = lastMessageTimestamp
+	m.readLastMsgID = lastMessageID
 	return nil
 }
 
@@ -1466,4 +1482,25 @@ func TestPruningBoundsBothRetentionClasses(t *testing.T) {
 	// after the undelivered window closes.
 	assert.Greater(t, processedCommandUndeliveredRetention, 24*time.Hour,
 		"undelivered retention must exceed the commands stream MaxAge")
+}
+
+func TestMarkChatReadCommand(t *testing.T) {
+	executor := &mockCommandExecutor{}
+	publisher := &mockGroupPublisher{}
+	subscriber := &Subscriber{
+		ctx:       context.Background(),
+		executor:  executor,
+		publisher: publisher,
+	}
+
+	payload := `{"type":"mark_read","chat_jid":"12345@s.whatsapp.net","messages":[{"id":"MSG123","sender":"12345@s.whatsapp.net"}],"last_message_timestamp":"2026-11-12T16:00:00Z","last_message_id":"MSG123","command_id":"cmd-read-1"}`
+
+	subscriber.handleCommand(&natsgo.Msg{Data: []byte(payload)})
+
+	assert.Equal(t, 1, executor.readCalls)
+	assert.Equal(t, "12345@s.whatsapp.net", executor.readJID)
+	assert.Equal(t, "MSG123", executor.readLastMsgID)
+	require.Len(t, executor.readMessages, 1)
+	assert.Equal(t, "MSG123", executor.readMessages[0].ID)
+	assert.Equal(t, "12345@s.whatsapp.net", executor.readMessages[0].Sender)
 }

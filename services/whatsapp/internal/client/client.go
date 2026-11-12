@@ -1188,6 +1188,86 @@ func (c *Client) ApplyLabel(ctx context.Context, contactJID, labelID string, lab
 	return c.client.SendAppState(ctx, appstate.BuildLabelChat(jid, labelID, labeled))
 }
 
+func (c *Client) MarkChatRead(ctx context.Context, chatJID string, messages []types.ReadMessageItem, lastMessageTimestamp time.Time, lastMessageID string) error {
+	if c.client == nil || !c.client.IsConnected() {
+		return fmt.Errorf("client not connected")
+	}
+
+	jid, err := waTypes.ParseJID(chatJID)
+	if err != nil {
+		return fmt.Errorf("invalid chat JID: %w", err)
+	}
+
+	if lastMessageTimestamp.IsZero() {
+		lastMessageTimestamp = time.Now()
+	}
+
+	// 1. Send AppState patch to sync read state to primary phone and other linked devices
+	var lastKey *waCommon.MessageKey
+	if lastMessageID != "" {
+		lastKey = &waCommon.MessageKey{
+			RemoteJID: proto.String(jid.String()),
+			FromMe:    proto.Bool(false),
+			ID:        proto.String(lastMessageID),
+		}
+	}
+	patch := appstate.BuildMarkChatAsRead(jid, true, lastMessageTimestamp, lastKey)
+	if err := c.client.SendAppState(ctx, patch); err != nil {
+		log.Printf("Failed to send MarkChatAsRead AppState patch for %s: %v", jid.String(), err)
+	} else {
+		log.Printf("Successfully sent MarkChatAsRead AppState patch for %s", jid.String())
+	}
+
+	// Also check if there is an alternate LID for this chat and send AppState for LID if different
+	if jid.Server == waTypes.DefaultUserServer && c.client.Store != nil && c.client.Store.LIDs != nil {
+		if lid, err := c.client.Store.LIDs.GetLIDForPN(ctx, jid); err == nil && !lid.IsEmpty() && lid.String() != jid.String() {
+			var lidKey *waCommon.MessageKey
+			if lastMessageID != "" {
+				lidKey = &waCommon.MessageKey{
+					RemoteJID: proto.String(lid.String()),
+					FromMe:    proto.Bool(false),
+					ID:        proto.String(lastMessageID),
+				}
+			}
+			lidPatch := appstate.BuildMarkChatAsRead(lid, true, lastMessageTimestamp, lidKey)
+			if err := c.client.SendAppState(ctx, lidPatch); err != nil {
+				log.Printf("Failed to send MarkChatAsRead AppState patch for LID %s: %v", lid.String(), err)
+			}
+		}
+	}
+
+	// 2. Send read receipts for individual messages so senders see blue checks
+	if len(messages) > 0 {
+		bySender := make(map[string][]waTypes.MessageID)
+		for _, m := range messages {
+			if m.ID == "" {
+				continue
+			}
+			sender := m.Sender
+			if sender == "" || jid.Server != waTypes.GroupServer {
+				sender = "" // In 1-on-1 chats, sender is empty
+			}
+			bySender[sender] = append(bySender[sender], waTypes.MessageID(m.ID))
+		}
+
+		for senderStr, ids := range bySender {
+			var senderJID waTypes.JID
+			if senderStr != "" {
+				if parsed, err := waTypes.ParseJID(senderStr); err == nil {
+					senderJID = parsed
+				}
+			}
+			if err := c.client.MarkRead(ctx, ids, lastMessageTimestamp, jid, senderJID); err != nil {
+				log.Printf("Failed to send MarkRead receipt to %s (sender: %s): %v", jid.String(), senderStr, err)
+			} else {
+				log.Printf("Sent MarkRead receipt for %d messages to %s", len(ids), jid.String())
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) SyncLabels(ctx context.Context) ([]types.WhatsAppLabel, error) {
 	// A full app-state fetch can cause whatsmeow to dispatch events while it
 	// waits for the server response. Never hold c.mu here: internalEventHandler

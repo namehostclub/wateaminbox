@@ -886,3 +886,46 @@ export async function publishTypingCommand(
     // Fire-and-forget: don't throw, just log the error
   }
 }
+
+export interface PublishMarkChatReadOptions {
+  chatJid: string;
+  messages?: Array<{ id: string; sender?: string }>;
+  messageIds?: string[];
+  lastMessageTimestamp?: string;
+  lastMessageId?: string;
+}
+
+/**
+ * Publishes a mark chat read command to WhatsApp service
+ * Fire-and-forget: errors are logged but don't fail the request
+ */
+export async function publishMarkChatReadCommand(
+  companyId: string,
+  connectionId: string,
+  options: PublishMarkChatReadOptions,
+): Promise<void> {
+  try {
+    const publisher = forConnection(
+      companyId,
+      connectionId,
+      publishCommand,
+      buildCommandSubject,
+    );
+    await publisher.markChatRead(options);
+    logger.debug(
+      {
+        companyId,
+        connectionId,
+        chatJid: options.chatJid,
+        messageCount:
+          options.messages?.length ?? options.messageIds?.length ?? 0,
+      },
+      "Published mark chat read command",
+    );
+  } catch (error) {
+    logger.error(
+      formatError(error),
+      "Failed to publish mark chat read command",
+    );
+  }
+}

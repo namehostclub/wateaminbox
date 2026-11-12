@@ -18,6 +18,7 @@ import type {
   GroupSyncCommand,
   GroupUpdateSettingsCommand,
   KillCommand,
+  MarkChatReadCommand,
   NatsCommand,
   PostStatusCommand,
   RemoveLabelCommand,
@@ -102,6 +103,26 @@ export class NatsCommandPublisher {
       oldest_from_me: input.oldestFromMe,
       oldest_timestamp: input.oldestTimestamp,
       count: input.count,
+    };
+    await this.publish(command);
+  }
+
+  async markChatRead(input: {
+    chatJid: string;
+    messages?: Array<{ id: string; sender?: string }>;
+    messageIds?: string[];
+    lastMessageTimestamp?: string;
+    lastMessageId?: string;
+  }): Promise<void> {
+    const command: MarkChatReadCommand = {
+      type: "mark_read",
+      company_id: this.companyId,
+      connection_id: this.connectionId,
+      chat_jid: input.chatJid,
+      messages: input.messages,
+      message_ids: input.messageIds,
+      last_message_timestamp: input.lastMessageTimestamp,
+      last_message_id: input.lastMessageId,
     };
     await this.publish(command);
   }

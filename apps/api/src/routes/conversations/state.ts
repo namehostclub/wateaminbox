@@ -2,6 +2,8 @@ import { getContactDisplayName, toDbDate } from "@wateaminbox/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { notFound } from "../../lib/errors.js";
+import { createLogger, formatError } from "../../lib/logger.js";
+import { publishMarkChatReadCommand } from "../../lib/nats/index.js";
 import { successData } from "../../lib/response.js";
 import {
   openConversationSchema,
@@ -32,6 +34,9 @@ import {
   broadcastToContactViewers,
   broadcastToConversationViewers,
 } from "../../services/message-broadcast.service.js";
+import { getActiveSessionId } from "../../services/whatsapp/session.js";
+
+const logger = createLogger("ConversationStateRoutes");
 
 export const stateRoutes = new Hono();
 
@@ -447,6 +452,101 @@ stateRoutes.post("/:id/read", async (c) => {
       })
       .execute();
   }
+
+  // Update messages table and dispatch WhatsApp read receipts / AppState sync
+  if (identity.contactId) {
+    const contact = await tenantDb
+      .selectFrom("contacts")
+      .select(["id", "jid", "whatsapp_connection_id"])
+      .where("id", "=", identity.contactId)
+      .executeTakeFirst();
+
+    if (contact) {
+      const unreadMessages = await tenantDb
+        .selectFrom("messages")
+        .select(["id", "message_id", "sender_jid", "timestamp"])
+        .where("contact_id", "=", identity.contactId)
+        .where((eb) =>
+          eb.or([eb("direction", "=", "inbound"), eb("from_me", "=", false)]),
+        )
+        .where("status", "!=", "read")
+        .orderBy("timestamp", "asc")
+        .execute();
+
+      if (unreadMessages.length > 0) {
+        await tenantDb
+          .updateTable("messages")
+          .set({ status: "read" })
+          .where("contact_id", "=", identity.contactId)
+          .where((eb) =>
+            eb.or([
+              eb("direction", "=", "inbound"),
+              eb("from_me", "=", false),
+            ]),
+          )
+          .where("status", "!=", "read")
+          .execute();
+      }
+
+      if (
+        contact.whatsapp_connection_id &&
+        contact.jid &&
+        (contact.jid.endsWith("@s.whatsapp.net") ||
+          contact.jid.endsWith("@g.us") ||
+          contact.jid.endsWith("@lid"))
+      ) {
+        try {
+          const sessionId = await getActiveSessionId(
+            tenantDb,
+            contact.whatsapp_connection_id,
+          );
+          let lastMessageId =
+            unreadMessages[unreadMessages.length - 1]?.message_id;
+          let lastTimestamp =
+            unreadMessages[unreadMessages.length - 1]?.timestamp;
+
+          if (!lastMessageId) {
+            const lastMsg = await tenantDb
+              .selectFrom("messages")
+              .select(["message_id", "timestamp"])
+              .where("contact_id", "=", identity.contactId)
+              .orderBy("timestamp", "desc")
+              .executeTakeFirst();
+            if (lastMsg) {
+              lastMessageId = lastMsg.message_id;
+              lastTimestamp = lastMsg.timestamp;
+            }
+          }
+
+          const isoTimestamp = lastTimestamp
+            ? lastTimestamp instanceof Date
+              ? lastTimestamp.toISOString()
+              : new Date(lastTimestamp).toISOString()
+            : new Date().toISOString();
+
+          await publishMarkChatReadCommand(companyId, sessionId, {
+            chatJid: contact.jid,
+            messages: unreadMessages
+              .filter((m): m is typeof m & { message_id: string } =>
+                Boolean(m.message_id),
+              )
+              .map((m) => ({
+                id: m.message_id,
+                sender: m.sender_jid || undefined,
+              })),
+            lastMessageTimestamp: isoTimestamp,
+            lastMessageId: lastMessageId || undefined,
+          });
+        } catch (err) {
+          logger.warn(
+            { err: formatError(err), contactId: contact.id },
+            "Could not dispatch WhatsApp mark read command",
+          );
+        }
+      }
+    }
+  }
+
   const payload = {
     contactId: identity.contactId,
     conversationId: identity.conversationId,

@@ -29,6 +29,7 @@ export type {
   GroupSyncCommand,
   GroupUpdateSettingsCommand,
   KillCommand,
+  MarkChatReadCommand,
   PostStatusCommand,
   RemoveLabelCommand,
   RequestHistoryCommand,
