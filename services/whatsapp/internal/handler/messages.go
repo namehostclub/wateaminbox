@@ -378,7 +378,11 @@ func (h *Handler) handleMarkChatAsRead(evt *events.MarkChatAsRead) {
 	if evt == nil {
 		return
 	}
-	chatJID := evt.JID.ToNonAD().String()
+	canonicalJID := h.resolvePreferredJID(evt.JID, types.EmptyJID).ToNonAD()
+	if canonicalJID.IsEmpty() {
+		canonicalJID = evt.JID.ToNonAD()
+	}
+	chatJID := canonicalJID.String()
 	isRead := true
 	if evt.Action != nil && evt.Action.Read != nil {
 		isRead = *evt.Action.Read
@@ -448,9 +452,9 @@ func (h *Handler) handleReceipt(receipt *events.Receipt) {
 			log.Printf("Failed to publish receipt event: %v", err)
 		}
 
-		// When our account reads messages on mobile (IsFromMe = true, read/read-self),
+		// When our account reads messages on mobile (read-self or IsFromMe read/played),
 		// also trigger a chat_read event so the conversation's unread badge clears in real time.
-		if (receiptType == "read" || receiptType == "played") && receipt.IsFromMe && !chatJID.IsEmpty() {
+		if (receipt.Type == types.ReceiptTypeReadSelf || ((receiptType == "read" || receiptType == "played") && receipt.IsFromMe)) && !chatJID.IsEmpty() {
 			if err := h.publisher.PublishChatRead(natsClient.ChatReadEvent{
 				ChatJID:    chatJID.String(),
 				IsRead:     true,

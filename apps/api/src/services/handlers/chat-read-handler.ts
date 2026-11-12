@@ -53,6 +53,73 @@ export async function handleChatReadEvent(event: ChatReadEvent): Promise<void> {
         .executeTakeFirst();
     }
 
+    // Fallback: Resolve LID <-> Phone Number mappings if contact is not found directly
+    if (!contact && normalizedChatJid.endsWith("@lid")) {
+      const bareLid = normalizedChatJid.replace(/:[0-9]+@/, "@");
+      const mappingResult = await sql<{ jid: string }>`
+        SELECT jid
+        FROM whatsapp_sessions.whatsmeow_lid_mappings
+        WHERE (
+          connection_id = ${connectionId}
+          OR connection_id IN (
+            SELECT id::text FROM whatsapp_connection_sessions
+            WHERE whatsapp_connection_id = ${connectionId}
+          )
+        )
+        AND regexp_replace(lid, ':[0-9]+@', '@') = ${bareLid}
+        ORDER BY created_at DESC NULLS LAST
+        LIMIT 1
+      `.execute(tenantDb);
+
+      const mappedJid = mappingResult.rows[0]?.jid;
+      if (mappedJid) {
+        const bareMappedJid = mappedJid.replace(/:[0-9]+@/, "@");
+        contact = await tenantDb
+          .selectFrom("contacts")
+          .select(["id", "jid"])
+          .where("whatsapp_connection_id", "=", connectionId)
+          .where((eb) =>
+            eb.or([
+              eb("jid", "=", mappedJid),
+              eb(sql`regexp_replace(jid, ':[0-9]+@', '@')`, "=", bareMappedJid),
+            ]),
+          )
+          .executeTakeFirst();
+      }
+    } else if (!contact && normalizedChatJid.endsWith("@s.whatsapp.net")) {
+      const barePn = normalizedChatJid.replace(/:[0-9]+@/, "@");
+      const mappingResult = await sql<{ lid: string }>`
+        SELECT lid
+        FROM whatsapp_sessions.whatsmeow_lid_mappings
+        WHERE (
+          connection_id = ${connectionId}
+          OR connection_id IN (
+            SELECT id::text FROM whatsapp_connection_sessions
+            WHERE whatsapp_connection_id = ${connectionId}
+          )
+        )
+        AND regexp_replace(jid, ':[0-9]+@', '@') = ${barePn}
+        ORDER BY created_at DESC NULLS LAST
+        LIMIT 1
+      `.execute(tenantDb);
+
+      const mappedLid = mappingResult.rows[0]?.lid;
+      if (mappedLid) {
+        const bareMappedLid = mappedLid.replace(/:[0-9]+@/, "@");
+        contact = await tenantDb
+          .selectFrom("contacts")
+          .select(["id", "jid"])
+          .where("whatsapp_connection_id", "=", connectionId)
+          .where((eb) =>
+            eb.or([
+              eb("jid", "=", mappedLid),
+              eb(sql`regexp_replace(jid, ':[0-9]+@', '@')`, "=", bareMappedLid),
+            ]),
+          )
+          .executeTakeFirst();
+      }
+    }
+
     if (!contact) {
       logger.debug(
         { chatJid: normalizedChatJid, connectionId },

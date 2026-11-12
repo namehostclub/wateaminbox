@@ -44,22 +44,38 @@ let conversationToReturn: { id: string } | undefined = {
   id: "conv-123",
 };
 
+let lidMappingToReturn: { jid?: string; lid?: string } | undefined;
+
+const makeSelectChain = (table: string) => {
+  const chain: any = {
+    select: () => chain,
+    where: () => chain,
+    orderBy: () => chain,
+    limit: () => chain,
+    executeTakeFirst: () => {
+      if (table === "contacts") {
+        return Promise.resolve(contactToReturn);
+      }
+      if (table === "conversations") {
+        return Promise.resolve(conversationToReturn);
+      }
+      return Promise.resolve(undefined);
+    },
+  };
+  return chain;
+};
+
 const fakeTenantDb = {
-  selectFrom: (table: string) => ({
-    select: () => ({
-      where: () => ({
-        where: () => ({
-          executeTakeFirst: () => {
-            if (table === "contacts") {
-              return Promise.resolve(contactToReturn);
-            }
-            if (table === "conversations") {
-              return Promise.resolve(conversationToReturn);
-            }
-            return Promise.resolve(undefined);
-          },
-        }),
-      }),
+  selectFrom: (table: string) => makeSelectChain(table),
+  getExecutor: () => ({
+    transformQuery: (node: unknown) => node,
+    compileQuery: (node: unknown) => ({
+      sql: "",
+      parameters: [],
+      query: node,
+    }),
+    executeQuery: async () => ({
+      rows: lidMappingToReturn ? [lidMappingToReturn] : [],
     }),
   }),
   updateTable: (table: string) => ({
@@ -106,6 +122,7 @@ describe("handleChatReadEvent", () => {
     conversationToReturn = {
       id: "conv-123",
     };
+    lidMappingToReturn = undefined;
   });
 
   test("resets unread_count to 0 and broadcasts conversation:read when read is true", async () => {
@@ -205,6 +222,36 @@ describe("handleChatReadEvent", () => {
     expect(stateUpdates.length).toBe(0);
     expect(messageUpdates.length).toBe(0);
     expect(contactBroadcasts.length).toBe(0);
+  });
+
+  test("resolves LID mapping and marks conversation as read when event uses @lid", async () => {
+    // Return LID mapping to phone number
+    lidMappingToReturn = { jid: "923001234567@s.whatsapp.net" };
+    // Initially contact not returned for LID, but returned for mapped phone number
+    contactToReturn = {
+      id: "contact-123",
+      jid: "923001234567@s.whatsapp.net",
+    };
+
+    const event: ChatReadEvent = {
+      contractVersion: 1,
+      type: "chat_read",
+      companyId: "comp-1",
+      connectionId: "conn-1",
+      timestamp: new Date().toISOString(),
+      payload: {
+        chatJid: "110277597069540@lid",
+        read: true,
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    await handleChatReadEvent(event);
+
+    expect(stateUpdates.length).toBe(1);
+    expect(stateUpdates[0].unread_count).toBe(0);
+    expect(contactBroadcasts.length).toBe(1);
+    expect(contactBroadcasts[0].event).toBe("conversation:read");
   });
 });
 
