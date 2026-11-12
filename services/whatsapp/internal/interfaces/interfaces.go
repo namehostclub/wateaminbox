@@ -40,6 +40,8 @@ type Publisher interface {
 	PublishMessage(msg MessageEvent) error
 	// PublishReceipt publishes a message receipt event.
 	PublishReceipt(receipt ReceiptEvent) error
+	// PublishChatRead publishes a chat read status event.
+	PublishChatRead(event ChatReadEvent) error
 	// PublishPresence publishes a presence update event.
 	PublishPresence(presence PresenceEvent) error
 	// PublishTyping publishes a typing indicator event.
@@ -111,7 +113,17 @@ type ReceiptEvent struct {
 	MessageIDs  []string
 	ReceiptType string
 	From        string
+	ChatJID     string
+	IsFromMe    bool
 	Timestamp   time.Time
+}
+
+// ChatReadEvent represents a chat read status update (from app state sync or receipt).
+type ChatReadEvent struct {
+	ChatJID    string
+	IsRead     bool
+	Timestamp  time.Time
+	MessageIDs []string
 }
 
 // PresenceEvent represents a presence update.

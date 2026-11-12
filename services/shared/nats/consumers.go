@@ -184,6 +184,7 @@ var apiCriticalEventSubjectPatterns = []string{
 	SubjectStatus,
 	SubjectMessage,
 	SubjectReceipt,
+	SubjectChatRead,
 	SubjectContact,
 	SubjectProfilePicture,
 	SubjectMessageRevoke,

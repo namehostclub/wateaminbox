@@ -229,6 +229,16 @@ type ReceiptPayload struct {
 	MessageID string `json:"messageId"`
 	Status    string `json:"status"` // "sent", "delivered", "read"
 	Timestamp string `json:"timestamp"`
+	ChatJID   string `json:"chatJid,omitempty"`
+	IsFromMe  bool   `json:"isFromMe,omitempty"`
+}
+
+// ChatReadPayload is the payload for chat read status events.
+type ChatReadPayload struct {
+	ChatJID    string   `json:"chatJid"`
+	Read       bool     `json:"read"`
+	Timestamp  string   `json:"timestamp"`
+	MessageIDs []string `json:"messageIds,omitempty"`
 }
 
 // PresencePayload is the payload for presence events.
@@ -546,7 +556,17 @@ type ReceiptEvent struct {
 	MessageIDs  []string  `json:"message_ids"`
 	ReceiptType string    `json:"receipt_type"` // "delivered", "read", "played"
 	From        string    `json:"from"`
+	ChatJID     string    `json:"chat_jid,omitempty"`
+	IsFromMe    bool      `json:"is_from_me,omitempty"`
 	Timestamp   time.Time `json:"timestamp"`
+}
+
+// ChatReadEvent represents a chat read status update (internal use).
+type ChatReadEvent struct {
+	ChatJID    string    `json:"chat_jid"`
+	IsRead     bool      `json:"is_read"`
+	Timestamp  time.Time `json:"timestamp"`
+	MessageIDs []string  `json:"message_ids,omitempty"`
 }
 
 // PresenceEvent represents a presence update (internal use).

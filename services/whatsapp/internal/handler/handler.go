@@ -238,6 +238,8 @@ func (h *Handler) HandleEvent(evt interface{}) {
 		h.handleHistorySync(v)
 	case *events.Contact:
 		h.handleContactName(v)
+	case *events.MarkChatAsRead:
+		h.handleMarkChatAsRead(v)
 	case *events.AppState:
 		h.handleLIDContactAction(v)
 	case *events.PushName:

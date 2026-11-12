@@ -29,6 +29,7 @@ import {
   invalidateChatList,
   invalidateCustomerTimelines,
   refetchConversationMessages,
+  updateChatUnreadCountInList,
   updateContactDetailsByJid,
   updateContactInChatList,
   updateMessageInCache,
@@ -413,7 +414,15 @@ export function registerRealtimeEventHandlers({
       removeTypingIndicator(payload.conversationId, payload.userId);
       clearTypingTimeout(payload.conversationId, payload.userId);
     }),
-    bindUserEvent<ConversationReadPayload>("conversation:read", () => {
+    bindUserEvent<ConversationReadPayload>("conversation:read", (data) => {
+      const payload = data.payload;
+      if (payload?.contactId) {
+        updateChatUnreadCountInList(
+          qc,
+          payload.contactId,
+          payload.unreadCount ?? 0,
+        );
+      }
       refreshChatList();
     }),
     bindUserEvent<ConversationUpdatedPayload>(

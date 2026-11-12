@@ -645,6 +645,8 @@ function mapReceiptStatus(
       return "delivered";
     case "read":
     case "played":
+    case "read-self":
+    case "played-self":
       return "read";
     default:
       // Unknown or empty status - skip update
@@ -739,6 +741,48 @@ export async function handleReceiptEvent(event: ReceiptEvent): Promise<void> {
           ? [payload.messageId, pendingMessageId]
           : [payload.messageId],
       );
+    }
+
+    // When the user reads incoming messages on their mobile phone, WhatsApp emits
+    // a read/read-self receipt with isFromMe = true. Update the inbound message status
+    // and clear the conversation unread count.
+    if (!updatedMessage && dbStatus === "read" && payload.isFromMe) {
+      const updatedInbound = await tenantDb
+        .updateTable("messages")
+        .set({
+          status: "read",
+        })
+        .where("message_id", "=", payload.messageId)
+        .where("whatsapp_connection_id", "=", connectionId)
+        .where("from_me", "=", false)
+        .returning(["id", "contact_id", "status"])
+        .executeTakeFirst();
+
+      if (updatedInbound?.contact_id) {
+        await tenantDb
+          .updateTable("conversation_states")
+          .set({
+            unread_count: 0,
+            read_at: toDbDate(payload.timestamp),
+            updated_at: toDbDate(),
+          })
+          .where("contact_id", "=", updatedInbound.contact_id)
+          .execute();
+
+        await broadcastToContactViewers(
+          companyId,
+          updatedInbound.contact_id,
+          "conversation:read",
+          {
+            contactId: updatedInbound.contact_id,
+            conversationId: updatedInbound.contact_id,
+            unreadCount: 0,
+          },
+          { connectionId },
+        );
+
+        updatedMessage = updatedInbound;
+      }
     }
 
     logger.debug(

@@ -28,6 +28,8 @@ export {
 // Error handlers
 export { handleErrorEvent } from "./error-handlers.js";
 
+// Chat read handlers
+export { handleChatReadEvent } from "./chat-read-handler.js";
 // Group administration handlers
 export { handleGroupEvent } from "./group-handlers.js";
 export { handleHistorySyncPageEvent } from "./history-handlers.js";

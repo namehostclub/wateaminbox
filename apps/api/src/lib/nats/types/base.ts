@@ -104,6 +104,7 @@ export interface WhatsAppEvent {
     | "logged_out"
     | "message"
     | "receipt"
+    | "chat_read"
     | "send_confirmation"
     | "send_failed"
     | "status"

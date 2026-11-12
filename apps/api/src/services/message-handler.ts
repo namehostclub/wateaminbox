@@ -4,6 +4,7 @@ import { PermanentEventError } from "../lib/nats/client.js";
 import {
   type CatalogProductsEvent,
   type CatalogsEvent,
+  type ChatReadEvent,
   type CommandResultEvent,
   type ConnectionEvent,
   type ContactEvent,
@@ -30,6 +31,7 @@ import {
 import {
   handleCatalogProductsEvent,
   handleCatalogsEvent,
+  handleChatReadEvent,
   handleCommandResultEvent,
   handleConnectedEvent,
   handleContactEvent,
@@ -164,6 +166,10 @@ async function processWhatsAppEvent(
 
       case "receipt":
         await handleReceiptEvent(resolvedEvent as ReceiptEvent);
+        break;
+
+      case "chat_read":
+        await handleChatReadEvent(resolvedEvent as ChatReadEvent);
         break;
 
       case "send_confirmation":

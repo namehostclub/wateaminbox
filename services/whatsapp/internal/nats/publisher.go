@@ -59,6 +59,7 @@ const (
 	SubjectHistoryMessage   = sharednats.SubjectHistoryMessage
 	SubjectHistoryContact   = sharednats.SubjectHistoryContact
 	SubjectReceipt          = sharednats.SubjectReceipt
+	SubjectChatRead         = sharednats.SubjectChatRead
 	SubjectPresence         = sharednats.SubjectPresence
 	SubjectContact          = sharednats.SubjectContact
 	SubjectProfilePicture   = sharednats.SubjectProfilePicture
@@ -87,6 +88,7 @@ type (
 	ContactCardPayload      = sharednats.ContactCardPayload
 	MessageRevokePayload    = sharednats.MessageRevokePayload
 	ReceiptPayload          = sharednats.ReceiptPayload
+	ChatReadPayload         = sharednats.ChatReadPayload
 	PresencePayload         = sharednats.PresencePayload
 	TypingPayload           = sharednats.TypingPayload
 	ContactPayload          = sharednats.ContactPayload
@@ -106,6 +108,7 @@ type (
 	ConnectionStatusEvent = sharednats.ConnectionStatusEvent
 	MessageEvent          = sharednats.MessageEvent
 	ReceiptEvent          = sharednats.ReceiptEvent
+	ChatReadEvent         = sharednats.ChatReadEvent
 	PresenceEvent         = sharednats.PresenceEvent
 	TypingEvent           = sharednats.TypingEvent
 	ReactionEvent         = sharednats.ReactionEvent
@@ -450,6 +453,8 @@ func (p *Publisher) PublishReceipt(receipt ReceiptEvent) error {
 				MessageID: msgID,
 				Status:    receipt.ReceiptType,
 				Timestamp: receipt.Timestamp.Format(time.RFC3339),
+				ChatJID:   receipt.ChatJID,
+				IsFromMe:  receipt.IsFromMe,
 			},
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
@@ -461,6 +466,29 @@ func (p *Publisher) PublishReceipt(receipt ReceiptEvent) error {
 	}
 
 	return nil
+}
+
+// PublishChatRead publishes a chat read status event.
+func (p *Publisher) PublishChatRead(event ChatReadEvent) error {
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now()
+	}
+
+	waEvent := WhatsAppEvent{
+		Type:         "chat_read",
+		CompanyID:    p.companyID,
+		ConnectionID: p.connectionID,
+		Payload: ChatReadPayload{
+			ChatJID:    event.ChatJID,
+			Read:       event.IsRead,
+			Timestamp:  event.Timestamp.Format(time.RFC3339),
+			MessageIDs: event.MessageIDs,
+		},
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	subject := fmt.Sprintf(SubjectChatRead, p.companyID, p.connectionID)
+	return p.publish(subject, waEvent)
 }
 
 // PublishPresence publishes a presence update event.

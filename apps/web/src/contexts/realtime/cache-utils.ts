@@ -200,6 +200,56 @@ export function updateContactInChatList(
 }
 
 /**
+ * Optimistically update unread count for a conversation/contact in chat list caches.
+ */
+export function updateChatUnreadCountInList(
+  queryClient: QueryClient,
+  conversationOrContactId: string,
+  unreadCount: number,
+): void {
+  queryClient.setQueriesData(
+    { queryKey: chatKeys.lists() },
+    (oldData: unknown) => {
+      if (!oldData || !Array.isArray(oldData)) return oldData;
+      return oldData.map((chat: Record<string, unknown>) => {
+        if (
+          chat.id === conversationOrContactId ||
+          (chat.contact as Record<string, unknown> | undefined)?.id ===
+            conversationOrContactId
+        ) {
+          return {
+            ...chat,
+            unreadCount,
+          };
+        }
+        return chat;
+      });
+    },
+  );
+  queryClient.setQueriesData<InfiniteData<ChatListPage, number>>(
+    { queryKey: [...chatKeys.lists(), "infinite"] },
+    (oldData) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page) => ({
+          ...page,
+          chats: page.chats.map((chat) =>
+            chat.id === conversationOrContactId ||
+            chat.contact.id === conversationOrContactId
+              ? {
+                  ...chat,
+                  unreadCount,
+                }
+              : chat,
+          ),
+        })),
+      };
+    },
+  );
+}
+
+/**
  * Update contact detail caches matching a JID. The conversation header reads
  * from this cache rather than the chat-list cache.
  */

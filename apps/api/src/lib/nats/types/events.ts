@@ -155,6 +155,19 @@ export interface ReceiptEvent extends WhatsAppEvent {
       | "played-self"
       | "inactive";
     timestamp: string;
+    chatJid?: string;
+    isFromMe?: boolean;
+  };
+}
+
+// Chat read event (emitted when chat or messages are read on mobile)
+export interface ChatReadEvent extends WhatsAppEvent {
+  type: "chat_read";
+  payload: {
+    chatJid: string;
+    read: boolean;
+    timestamp: string;
+    messageIds?: string[];
   };
 }
 

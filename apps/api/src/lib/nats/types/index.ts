@@ -44,6 +44,7 @@ export type {
 export type {
   CatalogProductsEvent,
   CatalogsEvent,
+  ChatReadEvent,
   CommandOutcome,
   CommandResultEvent,
   ConnectionEvent,

@@ -15,6 +15,7 @@ const (
 	SubjectHistoryMessage  = "WHATSAPP.events.%s.%s.history_message"
 	SubjectHistoryContact  = "WHATSAPP.events.%s.%s.history_contact"
 	SubjectReceipt         = "WHATSAPP.events.%s.%s.receipt"
+	SubjectChatRead        = "WHATSAPP.events.%s.%s.chat_read"
 	SubjectPresence        = "WHATSAPP.events.%s.%s.presence"
 	SubjectContact         = "WHATSAPP.events.%s.%s.contact"
 	SubjectProfilePicture  = "WHATSAPP.events.%s.%s.profile_picture"

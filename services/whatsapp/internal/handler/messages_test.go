@@ -276,6 +276,7 @@ func TestNormalizeReceiptStatus(t *testing.T) {
 		{name: "empty means delivered", receipt: types.ReceiptTypeDelivered, expected: "delivered"},
 		{name: "sender means sent", receipt: types.ReceiptTypeSender, expected: "sent"},
 		{name: "read", receipt: types.ReceiptTypeRead, expected: "read"},
+		{name: "read-self means read", receipt: types.ReceiptTypeReadSelf, expected: "read"},
 		{name: "played means read", receipt: types.ReceiptTypePlayed, expected: "read"},
 		{name: "unsupported is preserved", receipt: types.ReceiptTypeInactive, expected: "inactive"},
 	}
