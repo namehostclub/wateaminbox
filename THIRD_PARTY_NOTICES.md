@@ -9,7 +9,7 @@ WATeamInbox depends on third-party software distributed under its own license te
 - License: [Mozilla Public License 2.0 (MPL-2.0)](https://github.com/tulir/whatsmeow/blob/main/LICENSE)
 - Used by: `services/whatsapp`
 
-`services/whatsapp/go.mod` selects the whatsmeow module version used by the worker. This repository also tracks upstream whatsmeow as the `vendor/whatsmeow` Git submodule. Those references can point to different upstream commits; consult `go.mod`, `go.sum`, `.gitmodules`, and the Git submodule entry for the exact revisions in a checkout.
+`services/whatsapp/go.mod` selects the whatsmeow module version used by the worker. This repository also vendors whatsmeow directly at `vendor/whatsmeow`. Those references can point to different upstream commits; consult `go.mod`, `go.sum`, and the vendor source for the exact revisions in a checkout.
 
 whatsmeow source files, including any modifications to MPL-covered files, remain governed by MPL-2.0. The upstream source and license are available from the project link above. Distributors should review and preserve all license and notice obligations for the exact dependency versions they ship.
 

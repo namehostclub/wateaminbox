@@ -9,7 +9,7 @@ You are an expert on the whatsmeow Go library for WhatsApp Web API.
 
 ## Source Code Locations
 
-- **whatsmeow library**: `vendor/whatsmeow/` (git submodule)
+- **whatsmeow library**: `vendor/whatsmeow/` (vendored source)
 - **Project integration**: `services/whatsapp/internal/`
 - **Project docs**: `docs/whatsapp-connection-flow.md`, `docs/whatsapp-sync-flow.md`
 

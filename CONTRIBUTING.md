@@ -29,6 +29,6 @@ By participating, follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report secur
 
 6. Open a pull request explaining the problem, approach, validation, and any operational or security impact.
 
-Do not commit generated build output or `.env` files. If you change a dependency, include the reason and preserve its license and notice requirements. The `vendor/whatsmeow` submodule and Go module dependency remain governed by MPL-2.0; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Do not commit generated build output or `.env` files. If you change a dependency, include the reason and preserve its license and notice requirements. The `vendor/whatsmeow` directory and Go module dependency remain governed by MPL-2.0; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Unless stated otherwise, contributions submitted to this repository are provided under the repository's [MIT License](LICENSE). Submit only work you have the right to contribute.
