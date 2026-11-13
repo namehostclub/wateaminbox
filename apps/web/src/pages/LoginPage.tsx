@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AuthPageShell } from "../components/auth/AuthPageShell";
+import { MobileAppDownloadBadges } from "../components/brand/MobileAppDownloadBadges";
 import { Button } from "../components/ui/button";
 import { FormField } from "../components/ui/form-field";
 import { useAuth } from "../contexts/auth-context";
@@ -292,6 +293,13 @@ export function LoginPage() {
             {t("auth.createAccountLink", "Create an account")}
           </Link>
         </p>
+
+        <div className="mt-6 pt-5 border-t border-slate-200/80 dark:border-dark-border/80">
+          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-dark-text-tertiary">
+            {t("auth.getMobileApp", "Get the mobile app")}
+          </p>
+          <MobileAppDownloadBadges />
+        </div>
       </div>
     </AuthPageShell>
   );

@@ -13,6 +13,7 @@ import { companyRoutes, invitationRoutes } from "./companies.js";
 import { contactRoutes } from "./contacts/index.js";
 import { conversationRoutes } from "./conversations/index.js";
 import { debugRoutes } from "./debug.js";
+import { downloadsRoutes } from "./downloads.js";
 import { exportRoutes } from "./export.js";
 import { feedbackRoutes } from "./feedback.js";
 import { groupRoutes } from "./groups/index.js";
@@ -34,6 +35,9 @@ export const routes = new Hono();
 
 // Health check routes
 routes.route("/health", healthRoutes);
+
+// Public app downloads
+routes.route("/downloads", downloadsRoutes);
 
 // Public provider ingress. Opaque route keys and provider verification are
 // required; this route intentionally has no user-session middleware.

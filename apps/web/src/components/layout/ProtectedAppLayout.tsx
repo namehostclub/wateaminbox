@@ -9,10 +9,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Smartphone,
   Users,
 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { MobileAppDownloadBadges } from "../brand/MobileAppDownloadBadges";
 import { useAuth } from "../../contexts/auth-context";
 import { useWorkspace } from "../../contexts/workspace-context";
 import { useInboxHeadChats } from "../../hooks/useChats";
@@ -203,6 +205,7 @@ export function ProtectedAppLayout() {
 
   const { pathname, search } = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileAppModalOpen, setMobileAppModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     getInitialAppSidebarCollapsed,
   );
@@ -330,6 +333,20 @@ export function ProtectedAppLayout() {
           ))}
         </nav>
         <div className="mt-auto">
+          <button
+            type="button"
+            onClick={() => setMobileAppModalOpen(true)}
+            className={cn(
+              "mb-2 flex h-10 w-full items-center rounded-xl text-sm font-medium text-[#91a8a0] transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300",
+              sidebarCollapsed ? "justify-center px-0" : "gap-3 px-3",
+            )}
+            title="Download Mobile App"
+          >
+            <Smartphone className="h-[18px] w-[18px] text-emerald-400 shrink-0" />
+            <span className={sidebarCollapsed ? "sr-only" : undefined}>
+              Mobile App
+            </span>
+          </button>
           <button
             type="button"
             onClick={toggleSidebar}
@@ -538,6 +555,19 @@ export function ProtectedAppLayout() {
             </nav>
             <div className="flex items-center justify-end border-t border-[#dce3de] pt-3 dark:border-dark-border">
               <ButtonSignOut onClick={() => void logout()} />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={mobileAppModalOpen} onOpenChange={setMobileAppModalOpen}>
+          <DialogContent className="sm:max-w-md bg-white dark:bg-dark-secondary dark:border-dark-border">
+            <DialogHeader>
+              <DialogTitle className="text-center text-lg font-bold">
+                Download WATeamInbox Mobile App
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-2">
+              <MobileAppDownloadBadges />
             </div>
           </DialogContent>
         </Dialog>
