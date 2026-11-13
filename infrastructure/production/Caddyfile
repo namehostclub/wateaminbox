@@ -31,7 +31,7 @@
 
 	# Mobile app direct download routing
 	handle /downloads/* {
-		redir /api{uri} temporary
+		redir /api{uri} 302
 	}
 
 	# OAuth discovery. RFC 8414 and RFC 9728 fix these paths at the root, so
