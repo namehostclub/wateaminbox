@@ -79,9 +79,9 @@ export function MobileAppDownloadBadges({
   const [selectedPlatform, setSelectedPlatform] = useState<"android" | "ios">("android");
 
   const androidUrl =
-    import.meta.env.VITE_ANDROID_APP_URL || "https://wateam.ayyansystems.com/downloads/android";
+    import.meta.env.VITE_ANDROID_APP_URL || "/api/downloads/android";
   const iosUrl =
-    import.meta.env.VITE_IOS_APP_URL || "https://wateam.ayyansystems.com/downloads/ios";
+    import.meta.env.VITE_IOS_APP_URL || "/api/downloads/ios";
 
   const isMobileBrowser =
     typeof navigator !== "undefined" &&

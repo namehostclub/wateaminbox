@@ -29,6 +29,11 @@
 		}
 	}
 
+	# Mobile app direct download routing
+	handle /downloads/* {
+		redir /api{uri} temporary
+	}
+
 	# OAuth discovery. RFC 8414 and RFC 9728 fix these paths at the root, so
 	# they cannot be served under /api. Without this rule they fall through to
 	# the SPA below and answer 200 with HTML, which an MCP client reads as a

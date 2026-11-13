@@ -46,3 +46,4 @@ downloadsRoutes.get("/android", (c) => {
 downloadsRoutes.get("/ios", (c) => {
   return c.redirect(IOS_APP_URL, 302);
 });
+
