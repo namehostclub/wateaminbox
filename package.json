@@ -2,7 +2,8 @@
   "name": "wateaminbox",
   "private": true,
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/web",
     "packages/*",
     "services/*"
   ],
@@ -23,6 +24,10 @@
     "test:integration:go": "./scripts/run-integration-tests-go.sh",
     "test:go:race": "./scripts/run-go-race.sh",
     "clean": "turbo clean",
+    "mobile": "cd apps/mobile && bun run start",
+    "mobile:ios": "cd apps/mobile && bun run ios",
+    "mobile:android": "cd apps/mobile && bun run android",
+    "mobile:typecheck": "cd apps/mobile && bun run typecheck",
     "db:migrate": "turbo db:migrate",
     "db:generate": "turbo db:generate"
   },
