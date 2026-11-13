@@ -31,7 +31,9 @@
 
 	# Mobile app direct download routing
 	handle /downloads/* {
-		redir /api{uri} 302
+		reverse_proxy api-router:4451 {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 
 	# OAuth discovery. RFC 8414 and RFC 9728 fix these paths at the root, so

@@ -78,10 +78,20 @@ export function MobileAppDownloadBadges({
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<"android" | "ios">("android");
 
-  const androidUrl =
-    import.meta.env.VITE_ANDROID_APP_URL || "/api/downloads/android";
-  const iosUrl =
-    import.meta.env.VITE_IOS_APP_URL || "/api/downloads/ios";
+  const rawAndroidUrl =
+    import.meta.env.VITE_ANDROID_APP_URL || "/downloads/android";
+  const rawIosUrl =
+    import.meta.env.VITE_IOS_APP_URL || "/downloads/ios";
+
+  const getAbsoluteUrl = (url: string) => {
+    if (typeof window !== "undefined" && url.startsWith("/")) {
+      return `${window.location.origin}${url}`;
+    }
+    return url;
+  };
+
+  const androidUrl = getAbsoluteUrl(rawAndroidUrl);
+  const iosUrl = getAbsoluteUrl(rawIosUrl);
 
   const isMobileBrowser =
     typeof navigator !== "undefined" &&
