@@ -692,7 +692,7 @@ export function LoginPage() {
 
               {/* Main Floating Window Shell */}
               <div
-                className="overflow-hidden rounded-[24px] border border-slate-200/90 bg-white shadow-[0_24px_55px_-15px_rgba(0,100,50,0.12),0_8px_20px_-8px_rgba(0,0,0,0.04)]"
+                className="overflow-hidden rounded-[24px] border border-slate-200/90 bg-white shadow-[0_24px_55px_-15px_rgba(0,100,50,0.12),0_8px_20px_-8px_rgba(0,0,0,0.04)] lg:-rotate-[1.2deg] transition-transform duration-300 hover:rotate-0"
                 aria-hidden="true"
               >
                 {/* Window Top Bar with macOS Dots */}
