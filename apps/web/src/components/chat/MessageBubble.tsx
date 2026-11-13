@@ -402,9 +402,9 @@ export const MessageBubble = memo(function MessageBubble({
           bubbleRadiusClass(isOwn, groupPosition),
           isOwn ? OWN_BUBBLE_CLASS : INCOMING_BUBBLE_CLASS,
           isHighlighted &&
-            "ring-2 ring-yellow-400 ring-offset-2 dark:ring-offset-dark-primary",
+          "ring-2 ring-yellow-400 ring-offset-2 dark:ring-offset-dark-primary",
           isSelected &&
-            "ring-2 ring-whatsapp-teal-green ring-offset-1 dark:ring-offset-dark-primary",
+          "ring-2 ring-whatsapp-teal-green ring-offset-1 dark:ring-offset-dark-primary",
           "touch-manipulation",
         )}
         onContextMenu={selectionMode ? undefined : handleContextMenu}
@@ -579,7 +579,7 @@ function MessageMeta({
           : "text-[#667781] dark:text-dark-text-secondary",
         variant === "inline"
           ? // `select-none` keeps the timestamp out of a copied message.
-            "float-right ml-2 mt-1 inline-flex translate-y-0.5 select-none"
+          "float-right ml-2 mt-1 inline-flex translate-y-0.5 select-none"
           : "mt-1 flex justify-end",
       )}
     >
@@ -638,18 +638,17 @@ function SelectionCheckbox({
       aria-label={
         isSelected
           ? t(
-              "chat.messageSelected",
-              t("chat.messageSelected", "Message selected"),
-            )
+            "chat.messageSelected",
+            t("chat.messageSelected", "Message selected"),
+          )
           : t("chat.selectMessage", "Select message")
       }
     >
       <div
-        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-          isSelected
-            ? "bg-whatsapp-teal-green border-whatsapp-teal-green"
-            : "border-gray-400 dark:border-dark-text-tertiary bg-transparent"
-        }`}
+        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected
+          ? "bg-whatsapp-teal-green border-whatsapp-teal-green"
+          : "border-gray-400 dark:border-dark-text-tertiary bg-transparent"
+          }`}
       >
         {isSelected && (
           <svg
@@ -699,7 +698,7 @@ function ReplyPreview({
         ? t("chat.you")
         : replyToMessage.sentByUserName || "Team member"
       : formatPhoneLikeText(replyToMessage.senderName) ||
-        t("chat.unknownContact");
+      t("chat.unknownContact");
   const replyContent = !replyToMessage
     ? t("chat.quotedMessageUnavailable")
     : replyToMessage.isDeleted
@@ -717,35 +716,32 @@ function ReplyPreview({
     <Component
       {...(canNavigate
         ? {
-            type: "button" as const,
-            onClick: (event: React.MouseEvent) => {
-              event.stopPropagation();
-              if (navigationTarget) {
-                onNavigateToMessage?.(navigationTarget);
-              }
-            },
-            "aria-label": `${t("chat.reply")}: ${replySender}`,
-          }
+          type: "button" as const,
+          onClick: (event: React.MouseEvent) => {
+            event.stopPropagation();
+            if (navigationTarget) {
+              onNavigateToMessage?.(navigationTarget);
+            }
+          },
+          "aria-label": `${t("chat.reply")}: ${replySender}`,
+        }
         : {})}
-      className={`mb-1.5 w-full overflow-hidden rounded-lg border-l-2 p-2 text-left ${
-        isOwn
-          ? "border-[#0e7a52] bg-black/[0.06] dark:border-[#68e0b6] dark:bg-black/20"
-          : "border-whatsapp-green bg-black/[0.045] dark:bg-white/[0.06]"
-      } ${
-        canNavigate
+      className={`mb-1.5 w-full overflow-hidden rounded-lg border-l-2 p-2 text-left ${isOwn
+        ? "border-[#0e7a52] bg-black/[0.06] dark:border-[#68e0b6] dark:bg-black/20"
+        : "border-whatsapp-green bg-black/[0.045] dark:bg-white/[0.06]"
+        } ${canNavigate
           ? "cursor-pointer transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-whatsapp-green dark:hover:bg-black/30"
           : ""
-      }`}
+        }`}
     >
       <div className="flex items-start gap-2">
         <ReplyIcon className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 opacity-60" />
         <div className="flex-1 min-w-0">
           <p
-            className={`text-xs font-semibold mb-0.5 ${
-              isOwn
-                ? "text-current opacity-90"
-                : "text-gray-900 dark:text-dark-text-primary"
-            }`}
+            className={`text-xs font-semibold mb-0.5 ${isOwn
+              ? "text-current opacity-90"
+              : "text-gray-900 dark:text-dark-text-primary"
+              }`}
           >
             {replySender}
           </p>
@@ -754,11 +750,10 @@ function ReplyPreview({
             isOwn={isOwn}
             mentionParticipants={mentionParticipants}
             enableInteractions={false}
-            className={`line-clamp-2 text-xs ${
-              isOwn
-                ? "text-current opacity-70"
-                : "text-gray-700 dark:text-dark-text-secondary"
-            }`}
+            className={`line-clamp-2 text-xs ${isOwn
+              ? "text-current opacity-70"
+              : "text-gray-700 dark:text-dark-text-secondary"
+              }`}
             groupMentions={replyToMessage?.metadata?.groupMentions}
           />
         </div>
@@ -785,11 +780,10 @@ function FailedMessageBanner({
 
   return (
     <div
-      className={`mt-2 flex items-center justify-between gap-2 text-xs px-2 py-1 rounded ${
-        isOwn
-          ? "bg-red-500/15 text-red-800 dark:bg-red-500/20 dark:text-red-100"
-          : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-100"
-      }`}
+      className={`mt-2 flex items-center justify-between gap-2 text-xs px-2 py-1 rounded ${isOwn
+        ? "bg-red-500/15 text-red-800 dark:bg-red-500/20 dark:text-red-100"
+        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-100"
+        }`}
     >
       <div className="flex items-center gap-2">
         <svg
@@ -817,11 +811,10 @@ function FailedMessageBanner({
         <button
           onClick={() => onRetry(message.id)}
           disabled={isRetrying}
-          className={`flex items-center gap-1 px-2 py-0.5 rounded font-medium transition-colors ${
-            isOwn
-              ? "bg-black/10 text-current hover:bg-black/15 dark:bg-white/20 dark:hover:bg-white/30"
-              : "bg-red-200 text-red-800 hover:bg-red-300 dark:bg-white/15 dark:text-red-100 dark:hover:bg-white/25"
-          } ${isRetrying ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded font-medium transition-colors ${isOwn
+            ? "bg-black/10 text-current hover:bg-black/15 dark:bg-white/20 dark:hover:bg-white/30"
+            : "bg-red-200 text-red-800 hover:bg-red-300 dark:bg-white/15 dark:text-red-100 dark:hover:bg-white/25"
+            } ${isRetrying ? "opacity-50 cursor-not-allowed" : ""}`}
           aria-label={t("chat.retrySendAria", "Retry sending this message")}
         >
           {isRetrying ? (
@@ -902,13 +895,13 @@ function TeamSenderLabel({
       title={
         wasSentFromTeamInbox
           ? t("chat.teamInboxSender", {
-              defaultValue: "{{label}} · Team inbox",
-              label,
-            })
+            defaultValue: "{{label}} · Team inbox",
+            label,
+          })
           : t(
-              "chat.linkedPhoneSender",
-              "Sent directly from the linked WhatsApp phone",
-            )
+            "chat.linkedPhoneSender",
+            "Sent directly from the linked WhatsApp phone",
+          )
       }
     >
       {label}
