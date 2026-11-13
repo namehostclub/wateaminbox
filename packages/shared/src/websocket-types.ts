@@ -42,6 +42,8 @@ export type ServerToClientEventType =
   // Conversation events
   | "conversation:updated"
   | "conversation:read"
+  | "call:incoming"
+  | "call:missed"
   // Contact events
   | "contact"
   | "contact:updated"

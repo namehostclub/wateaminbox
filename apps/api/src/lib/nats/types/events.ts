@@ -135,6 +135,14 @@ export interface MessageEvent extends WhatsAppEvent {
     mediaFileSha256?: string; // Base64 encoded
     mediaFileEncSha256?: string; // Base64 encoded
     isHistorySync?: boolean;
+    isSystemEvent?: boolean;
+    callEvent?: {
+      callId: string;
+      status: "incoming" | "missed" | "declined";
+      reason?: string;
+      timestamp: string;
+      isVideo?: boolean;
+    };
   };
 }
 

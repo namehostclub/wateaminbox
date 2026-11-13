@@ -15,10 +15,13 @@ import {
   Mic,
   Paperclip,
   Pause,
+  PhoneIncoming,
+  PhoneMissed,
   Play,
   RotateCcw,
   Send,
   Square,
+  Trash2,
   User,
 } from "lucide-react-native";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -48,7 +51,15 @@ export default function ChatDetailScreen() {
 
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
   const [activeSound, setActiveSound] = useState<{
     id: string;
     sound: Audio.Sound;
@@ -226,12 +237,37 @@ export default function ChatDetailScreen() {
 
       setRecording(newRecording);
       setIsRecording(true);
+      setRecordingDuration(0);
+      durationTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
     } catch (err: any) {
       Alert.alert("Recording Error", err.message || "Failed to start recording");
     }
   };
 
+  const cancelRecording = async () => {
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+    if (!recording) return;
+    try {
+      await recording.stopAndUnloadAsync();
+      setRecording(null);
+    } catch {
+      // ignore
+    }
+  };
+
   const stopRecordingAndSend = async () => {
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    setRecordingDuration(0);
     if (!recording) return;
 
     try {
@@ -316,6 +352,44 @@ export default function ChatDetailScreen() {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+    // Handle System Call Events (Incoming / Missed WhatsApp Calls)
+    const isCallEvent =
+      item.content?.includes("📞") ||
+      (item as any).metadata?.isSystemEvent ||
+      Boolean((item as any).metadata?.callEvent);
+
+    if (isCallEvent) {
+      const isMissed =
+        item.content?.toLowerCase().includes("missed") ||
+        (item as any).metadata?.callEvent?.status === "missed";
+      return (
+        <View style={styles.systemCallEventRow}>
+          <View style={styles.systemCallEventCard}>
+            <View
+              style={[
+                styles.systemCallIconBox,
+                isMissed
+                  ? styles.systemCallIconMissed
+                  : styles.systemCallIconIncoming,
+              ]}
+            >
+              {isMissed ? (
+                <PhoneMissed size={16} color="#ef4444" />
+              ) : (
+                <PhoneIncoming size={16} color="#10b981" />
+              )}
+            </View>
+            <View style={styles.systemCallTextBox}>
+              <Text style={styles.systemCallTitle}>
+                {item.content || "WhatsApp Voice Call"}
+              </Text>
+              <Text style={styles.systemCallTime}>{timeStr}</Text>
+            </View>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View
@@ -408,52 +482,73 @@ export default function ChatDetailScreen() {
       )}
 
       {/* Message Composer Bar */}
-      <View style={styles.composerBar}>
-        <TouchableOpacity
-          style={styles.attachButton}
-          onPress={handlePickImage}
-        >
-          <Paperclip size={22} color="#8696a0" />
-        </TouchableOpacity>
-
-        <TextInput
-          style={styles.composerInput}
-          placeholder="Type a message..."
-          placeholderTextColor="#8696a0"
-          value={inputText}
-          onChangeText={setInputText}
-          multiline={true}
-          maxLength={4000}
-        />
-
-        {inputText.trim() ? (
+      {isRecording ? (
+        <View style={styles.recordingBar}>
           <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleSend}
-            disabled={sendMutation.isPending}
+            style={styles.trashRecordButton}
+            onPress={cancelRecording}
+            accessibilityLabel="Cancel recording"
           >
-            {sendMutation.isPending ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Send size={18} color="#ffffff" />
-            )}
+            <Trash2 size={20} color="#ef4444" />
           </TouchableOpacity>
-        ) : (
+
+          <View style={styles.recordingTimerBox}>
+            <View style={styles.recordingPulsingDot} />
+            <Text style={styles.recordingTimerText}>
+              {formatDuration(recordingDuration)}
+            </Text>
+            <Text style={styles.recordingHintText}>Recording audio...</Text>
+          </View>
+
           <TouchableOpacity
-            style={[
-              styles.micButton,
-              isRecording && styles.micButtonRecording,
-            ]}
-            onPress={isRecording ? stopRecordingAndSend : startRecording}
+            style={styles.sendRecordButton}
+            onPress={stopRecordingAndSend}
+            accessibilityLabel="Send voice note"
           >
-            {isRecording ? (
-              <Square size={18} color="#ffffff" />
-            ) : (
+            <Send size={18} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.composerBar}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={handlePickImage}
+          >
+            <Paperclip size={22} color="#8696a0" />
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.composerInput}
+            placeholder="Type a message..."
+            placeholderTextColor="#8696a0"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline={true}
+            maxLength={4000}
+          />
+
+          {inputText.trim() ? (
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={handleSend}
+              disabled={sendMutation.isPending}
+            >
+              {sendMutation.isPending ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Send size={18} color="#ffffff" />
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.micButton}
+              onPress={startRecording}
+            >
               <Mic size={22} color="#8696a0" />
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -611,6 +706,96 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  systemCallEventRow: {
+    width: "100%",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  systemCallEventCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#182229",
+    borderWidth: 1,
+    borderColor: "#222d34",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: "85%",
+  },
+  systemCallIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  systemCallIconMissed: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+  },
+  systemCallIconIncoming: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+  },
+  systemCallTextBox: {
+    flex: 1,
+  },
+  systemCallTitle: {
+    color: "#e9edef",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  systemCallTime: {
+    color: "#8696a0",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  recordingBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#1f2c34",
+    borderTopWidth: 1,
+    borderTopColor: "#222d34",
+  },
+  trashRecordButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recordingTimerBox: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 12,
+    gap: 8,
+  },
+  recordingPulsingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#ef4444",
+  },
+  recordingTimerText: {
+    color: "#ef4444",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  recordingHintText: {
+    color: "#8696a0",
+    fontSize: 12,
+  },
+  sendRecordButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#00a884",
     justifyContent: "center",
     alignItems: "center",
   },

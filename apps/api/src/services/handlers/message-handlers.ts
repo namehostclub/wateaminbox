@@ -285,9 +285,20 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
       : "delivered";
     const albumMetadata = buildIncomingMessageMetadata(payload);
     const documentMetadata = buildInboundMessageMetadata(payload);
+    const callMetadata =
+      payload.isSystemEvent || payload.callEvent
+        ? {
+            isSystemEvent: Boolean(payload.isSystemEvent),
+            ...(payload.callEvent ? { callEvent: payload.callEvent } : {}),
+          }
+        : null;
     const incomingMetadata =
-      albumMetadata || documentMetadata
-        ? { ...(albumMetadata ?? {}), ...(documentMetadata ?? {}) }
+      albumMetadata || documentMetadata || callMetadata
+        ? {
+            ...(albumMetadata ?? {}),
+            ...(documentMetadata ?? {}),
+            ...(callMetadata ?? {}),
+          }
         : null;
 
     const messageId = crypto.randomUUID();

@@ -148,6 +148,13 @@ export interface MessageMetadata {
    * a system event must never be sendable.
    */
   isSystemEvent?: boolean;
+  callEvent?: {
+    callId: string;
+    status: "incoming" | "missed" | "declined";
+    reason?: string;
+    timestamp: string;
+    isVideo?: boolean;
+  };
   groupMentions?: Array<{ jid: string; subject: string }>;
   mediaUrl?: string;
   mimeType?: string;

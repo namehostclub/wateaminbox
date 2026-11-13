@@ -106,6 +106,8 @@ type MessageEvent struct {
 	MediaFileSHA256    []byte
 	MediaFileEncSHA256 []byte
 	IsHistorySync      bool
+	IsSystemEvent      bool
+	CallEvent          *sharednats.CallEventPayload
 }
 
 // ReceiptEvent represents a message receipt (delivered, read, etc.).

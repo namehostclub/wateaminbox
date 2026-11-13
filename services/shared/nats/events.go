@@ -205,8 +205,10 @@ type MessagePayload struct {
 	MediaDirectPath    string `json:"mediaDirectPath,omitempty"`
 	MediaKey           []byte `json:"mediaKey,omitempty"`
 	MediaFileSHA256    []byte `json:"mediaFileSha256,omitempty"`
-	MediaFileEncSHA256 []byte `json:"mediaFileEncSha256,omitempty"`
-	IsHistorySync      bool   `json:"isHistorySync,omitempty"`
+	MediaFileEncSHA256 []byte             `json:"mediaFileEncSha256,omitempty"`
+	IsHistorySync      bool               `json:"isHistorySync,omitempty"`
+	IsSystemEvent      bool               `json:"isSystemEvent,omitempty"`
+	CallEvent          *CallEventPayload  `json:"callEvent,omitempty"`
 }
 
 // ContactCardPayload carries the vCard WhatsApp attached to a shared contact.
@@ -214,6 +216,15 @@ type MessagePayload struct {
 type ContactCardPayload struct {
 	DisplayName string `json:"displayName"`
 	VCard       string `json:"vcard"`
+}
+
+// CallEventPayload carries metadata for an incoming, missed, or declined voice/video call.
+type CallEventPayload struct {
+	CallID    string `json:"callId"`
+	Status    string `json:"status"` // "incoming" | "missed" | "declined"
+	Reason    string `json:"reason,omitempty"`
+	Timestamp string `json:"timestamp"`
+	IsVideo   bool   `json:"isVideo,omitempty"`
 }
 
 // MessageRevokePayload is the payload for message revocation events.
@@ -547,8 +558,10 @@ type MessageEvent struct {
 	MediaDirectPath    string `json:"media_direct_path,omitempty"`
 	MediaKey           []byte `json:"media_key,omitempty"`
 	MediaFileSHA256    []byte `json:"media_file_sha256,omitempty"`
-	MediaFileEncSHA256 []byte `json:"media_file_enc_sha256,omitempty"`
-	IsHistorySync      bool   `json:"is_history_sync,omitempty"`
+	MediaFileEncSHA256 []byte             `json:"media_file_enc_sha256,omitempty"`
+	IsHistorySync      bool               `json:"is_history_sync,omitempty"`
+	IsSystemEvent      bool               `json:"is_system_event,omitempty"`
+	CallEvent          *CallEventPayload  `json:"call_event,omitempty"`
 }
 
 // ReceiptEvent represents a message receipt (delivered, read, etc.) (internal use).

@@ -15,6 +15,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { Phone } from "lucide-react";
 import { toast } from "sonner";
 import { queryKeys } from "../hooks/query-keys";
 import {
@@ -302,7 +303,7 @@ export function NotificationProvider({
     // User channel: the server already restricted this to members allowed to
     // read the conversation, so a desktop notification cannot surface a chat
     // the recipient is not authorized to open.
-    return subscribeUser<NewMessagePayload>(
+    const unsubMessage = subscribeUser<NewMessagePayload>(
       "message:new",
       ({ message, conversationId }) => {
         if (
@@ -333,6 +334,48 @@ export function NotificationProvider({
         );
       },
     );
+
+    const unsubCall = subscribeUser<{
+      callId: string;
+      status: string;
+      contactId: string;
+      conversationId: string;
+      callerName: string;
+      callerPhone: string;
+      timestamp: string;
+    }>("call:incoming", (data) => {
+      const caller = data.callerName || data.callerPhone || "WhatsApp Caller";
+      toast(
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+            <Phone className="h-4 w-4 animate-pulse" />
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-xs font-bold text-slate-800 dark:text-white">
+              Incoming WhatsApp Call
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
+              {caller}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/chat/${data.conversationId}`);
+            }}
+            className="ml-auto rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            View
+          </button>
+        </div>,
+        { duration: 8000, id: `call-${data.callId}` },
+      );
+    });
+
+    return () => {
+      unsubMessage();
+      unsubCall();
+    };
   }, [
     enabled,
     hasActivePushSubscription,

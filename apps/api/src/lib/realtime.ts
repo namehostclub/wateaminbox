@@ -70,6 +70,8 @@ export const CONVERSATION_REALTIME_EVENT_TYPES = [
   "presence:offline",
   "conversation:read",
   "conversation:updated",
+  "call:incoming",
+  "call:missed",
 ] as const;
 
 export type ConversationRealtimeEventType =

@@ -1,7 +1,7 @@
 import type { Message } from "@wateaminbox/shared";
 import { formatMessageTime } from "@wateaminbox/shared";
 import type { TFunction } from "i18next";
-import { Smartphone } from "lucide-react";
+import { PhoneIncoming, PhoneMissed, Smartphone } from "lucide-react";
 import { lazy, memo, Suspense, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -312,6 +312,48 @@ export const MessageBubble = memo(function MessageBubble({
   // treatment as a date divider.
   if (message.metadata?.isSystemEvent) {
     if (!message.content?.trim()) return null;
+
+    if (message.metadata?.callEvent) {
+      const isMissed = message.metadata.callEvent.status === "missed";
+      const isDeclined = message.metadata.callEvent.status === "declined";
+      const timeStr = formatMessageTime(message.createdAt);
+
+      return (
+        <div className="flex justify-center py-2">
+          <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-2 shadow-sm dark:border-dark-border dark:bg-dark-secondary">
+            <div
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full",
+                isMissed
+                  ? "bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400"
+                  : isDeclined
+                    ? "bg-amber-50 text-amber-500 dark:bg-amber-950/40 dark:text-amber-400"
+                    : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+              )}
+            >
+              {isMissed ? (
+                <PhoneMissed className="h-3.5 w-3.5" />
+              ) : (
+                <PhoneIncoming className="h-3.5 w-3.5" />
+              )}
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-800 dark:text-dark-text-primary">
+                {isMissed
+                  ? "Missed WhatsApp voice call"
+                  : isDeclined
+                    ? "Declined WhatsApp voice call"
+                    : "Incoming WhatsApp voice call"}
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-dark-text-tertiary">
+                {timeStr}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex justify-center py-1.5">
         <span className="rounded-full bg-black/[0.06] px-3 py-1 text-center text-xs text-[#54656f] dark:bg-white/[0.08] dark:text-dark-text-secondary">

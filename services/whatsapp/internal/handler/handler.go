@@ -266,6 +266,12 @@ func (h *Handler) HandleEvent(evt interface{}) {
 		h.handleOfflineSyncPreview(v)
 	case *events.OfflineSyncCompleted:
 		h.handleOfflineSyncCompleted(v)
+	case *events.CallOffer:
+		h.handleCallOffer(v)
+	case *events.CallTerminate:
+		h.handleCallTerminate(v)
+	case *events.CallReject:
+		h.handleCallReject(v)
 	default:
 		// Ignore other events silently
 	}

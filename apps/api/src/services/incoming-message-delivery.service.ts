@@ -94,6 +94,12 @@ export async function deliverIncomingMessage(
             mediaAlbumCount: incomingMetadata.mediaAlbumCount,
           }
         : {}),
+      ...((incomingMetadata as any)?.isSystemEvent
+        ? { isSystemEvent: (incomingMetadata as any).isSystemEvent }
+        : {}),
+      ...((incomingMetadata as any)?.callEvent
+        ? { callEvent: (incomingMetadata as any).callEvent }
+        : {}),
     };
     await broadcastToContactViewers(
       companyId,
@@ -132,6 +138,30 @@ export async function deliverIncomingMessage(
       },
       { connectionId, requireDelivery: true },
     );
+
+    if (incomingMetadata && (incomingMetadata as any).callEvent) {
+      const callEvt = (incomingMetadata as any).callEvent as {
+        status?: string;
+        callId?: string;
+      };
+      const eventType =
+        callEvt.status === "incoming" ? "call:incoming" : "call:missed";
+      await broadcastToContactViewers(
+        companyId,
+        contact.id,
+        eventType,
+        {
+          callId: callEvt.callId,
+          status: callEvt.status,
+          contactId: contact.id,
+          conversationId: contact.id,
+          callerName: senderName || contactName,
+          callerPhone: contact.phone_number,
+          timestamp: payload.timestamp,
+        },
+        { connectionId },
+      );
+    }
   }
 
   if (kind === "realtime" && caseResult) {
