@@ -212,9 +212,9 @@ export function LoginPage() {
         resendFailure instanceof Error
           ? resendFailure.message
           : t(
-              "auth.resendVerificationFailed",
-              "Could not resend the verification email",
-            ),
+            "auth.resendVerificationFailed",
+            "Could not resend the verification email",
+          ),
       );
     } finally {
       setIsResending(false);
@@ -342,9 +342,9 @@ export function LoginPage() {
                       {isResending
                         ? t("auth.sending", "Sending…")
                         : t(
-                            "auth.resendVerification",
-                            "Resend verification email",
-                          )}
+                          "auth.resendVerification",
+                          "Resend verification email",
+                        )}
                     </button>
                   )}
                   {resendMessage && (
@@ -887,22 +887,20 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedPlatform("android")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  selectedPlatform === "android"
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${selectedPlatform === "android"
                     ? "bg-white text-emerald-700 shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Android APK
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedPlatform("ios")}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  selectedPlatform === "ios"
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${selectedPlatform === "ios"
                     ? "bg-white text-emerald-700 shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Apple iOS
               </button>
