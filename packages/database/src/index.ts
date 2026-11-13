@@ -83,6 +83,7 @@ export type {
   TagsTable,
   TenantDatabase,
   TenantMessagesTable,
+  UserDeviceTokensTable,
   UserSessionsTable,
   UsersTable,
   WhatsAppCatalogsTable,

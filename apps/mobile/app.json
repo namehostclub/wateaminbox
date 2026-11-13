@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "WATeamInbox",
+    "slug": "wateaminbox",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "wateaminbox",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b141a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ayyansystems.wateaminbox",
+      "infoPlist": {
+        "NSCameraUsageDescription": "WATeamInbox needs access to your camera to take and send photos in customer chats.",
+        "NSMicrophoneUsageDescription": "WATeamInbox needs access to your microphone to record voice notes in customer chats.",
+        "NSPhotoLibraryUsageDescription": "WATeamInbox needs access to your photo library to attach media files in customer chats.",
+        "UIBackgroundModes": ["remote-notification", "fetch"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b141a"
+      },
+      "package": "com.ayyansystems.wateaminbox",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#25D366",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow WATeamInbox to use FaceID for quick and secure access to customer messages."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

@@ -169,6 +169,10 @@ export {
   deletePushSubscriptionSchema,
   pushSubscriptionSchema,
 } from "./push-subscription.js";
+export {
+  deleteDeviceTokenSchema,
+  registerDeviceTokenSchema,
+} from "./device-token.js";
 // Quick Replies
 export {
   type CreateQuickReplyInput,

@@ -22,6 +22,7 @@ import {
   type UserFanOutOptions,
 } from "../lib/realtime.js";
 import { getCompanyMemberPermissions } from "./company-membership.service.js";
+import { sendMobilePushToUsers } from "./mobile-push.service.js";
 import type { MemberPermissions } from "./permission.service.js";
 import { getTenantConnection, type TenantDatabase } from "./tenant.service.js";
 
@@ -207,6 +208,33 @@ export async function broadcastToConversationViewers(
       options.alsoNotifyUserIds,
     );
     await broadcastToUsers(companyId, recipients, eventType, payload, options);
+
+    if (eventType === "message:new" && payload && typeof payload === "object") {
+      const p = payload as {
+        message?: {
+          fromMe?: boolean;
+          content?: string;
+          senderName?: string;
+          contactId?: string;
+        };
+      };
+      if (p.message && !p.message.fromMe) {
+        sendMobilePushToUsers(companyId, recipients, {
+          title: p.message.senderName || "New message",
+          body: p.message.content || "New incoming message",
+          data: {
+            conversationId,
+            contactId: p.message.contactId ?? conversationId,
+            type: "message:new",
+          },
+        }).catch((pushErr) => {
+          logger.warn(
+            { err: formatError(pushErr), conversationId },
+            "Failed to dispatch mobile push notification",
+          );
+        });
+      }
+    }
   } catch (error) {
     if (options.requireDelivery) throw error;
     logger.error(
@@ -234,6 +262,33 @@ export async function broadcastToContactViewers(
       options.alsoNotifyUserIds,
     );
     await broadcastToUsers(companyId, recipients, eventType, payload, options);
+
+    if (eventType === "message:new" && payload && typeof payload === "object") {
+      const p = payload as {
+        message?: {
+          fromMe?: boolean;
+          content?: string;
+          senderName?: string;
+          contactId?: string;
+        };
+      };
+      if (p.message && !p.message.fromMe) {
+        sendMobilePushToUsers(companyId, recipients, {
+          title: p.message.senderName || "New message",
+          body: p.message.content || "New incoming message",
+          data: {
+            conversationId: contactId,
+            contactId,
+            type: "message:new",
+          },
+        }).catch((pushErr) => {
+          logger.warn(
+            { err: formatError(pushErr), contactId },
+            "Failed to dispatch mobile push notification",
+          );
+        });
+      }
+    }
   } catch (error) {
     if (options.requireDelivery) throw error;
     logger.error(

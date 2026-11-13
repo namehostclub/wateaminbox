@@ -36,6 +36,7 @@ export interface Database {
   channel_spine_workspace_flag_audit: ChannelSpineWorkspaceFlagAuditTable;
   channel_ingress_routes: ChannelIngressRoutesTable;
   channel_message_delivery_outbox: ChannelMessageDeliveryOutboxTable;
+  user_device_tokens: UserDeviceTokensTable;
 }
 
 // Type alias for backward compatibility (deprecated - import from @wateaminbox/shared instead)
@@ -153,6 +154,17 @@ export interface UsersTable {
   is_super_admin: Generated<boolean>;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+export interface UserDeviceTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  company_id: string;
+  token: string;
+  platform: "ios" | "android" | "web";
+  device_name: string | null;
+  last_seen_at: Generated<Date>;
+  created_at: Generated<Date>;
 }
 
 export interface CompanyMembersTable {

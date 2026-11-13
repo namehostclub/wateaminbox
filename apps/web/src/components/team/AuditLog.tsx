@@ -528,7 +528,7 @@ function FilterSelect({
         <SelectTrigger className="mt-1 h-9 w-full">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>{children}</SelectContent>
+        <SelectContent>{children as any}</SelectContent>
       </Select>
     </label>
   );

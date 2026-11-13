@@ -3,16 +3,19 @@ import { isTableNotFoundError, notFound } from "../lib/errors.js";
 import { created, successData } from "../lib/response.js";
 import {
   createNotificationSchema,
+  deleteDeviceTokenSchema,
   deletePushSubscriptionSchema,
   listNotificationsQuerySchema,
   muteContactSchema,
   pushSubscriptionSchema,
+  registerDeviceTokenSchema,
   updatePreferencesSchema,
 } from "../lib/schemas/index.js";
 import { zValidator } from "../lib/validator.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { getRouteContext } from "../middleware/context.js";
 import { tenantMiddleware } from "../middleware/tenant.js";
+import * as mobilePushService from "../services/mobile-push.service.js";
 import { createAndPublishNotification } from "../services/notification-delivery.service.js";
 import * as notificationHistoryService from "../services/notification-history.service.js";
 import * as notificationPreferencesService from "../services/notification-preferences.service.js";
@@ -172,6 +175,37 @@ notificationRoutes.delete(
       companyId,
       user.id,
       c.req.valid("json").endpoint,
+    );
+    return successData(c, { deleted });
+  },
+);
+
+/**
+ * POST /notifications/devices - Register or refresh a mobile push device token
+ */
+notificationRoutes.post(
+  "/devices",
+  zValidator("json", registerDeviceTokenSchema),
+  async (c) => {
+    const { user, companyId } = getRouteContext(c);
+    const input = c.req.valid("json");
+    await mobilePushService.registerDeviceToken(companyId, user.id, input);
+    return successData(c, { registered: true });
+  },
+);
+
+/**
+ * DELETE /notifications/devices - Deregister a mobile push device token
+ */
+notificationRoutes.delete(
+  "/devices",
+  zValidator("json", deleteDeviceTokenSchema),
+  async (c) => {
+    const { user } = getRouteContext(c);
+    const input = c.req.valid("json");
+    const deleted = await mobilePushService.deleteDeviceToken(
+      user.id,
+      input.token,
     );
     return successData(c, { deleted });
   },
