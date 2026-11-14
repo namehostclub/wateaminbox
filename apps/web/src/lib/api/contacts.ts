@@ -234,3 +234,73 @@ export async function mergeContact(
     },
   );
 }
+
+export interface ContactLockStatus {
+  isPasswordProtected: boolean;
+  hint: string | null;
+}
+
+export interface SetContactLockParams {
+  password: string;
+  hint?: string | null;
+  currentPassword?: string;
+}
+
+export interface UnlockContactResponse {
+  success: boolean;
+  unlocked: boolean;
+  unlockToken: string;
+}
+
+export async function getContactLockStatus(
+  contactId: string,
+): Promise<ContactLockStatus> {
+  return await fetchWithAuth<ContactLockStatus>(
+    `/contacts/${encodeURIComponent(contactId)}/lock-status`,
+  );
+}
+
+export async function setContactLock(
+  contactId: string,
+  data: SetContactLockParams,
+): Promise<{
+  success: boolean;
+  isPasswordProtected: boolean;
+  hint?: string | null;
+  unlockToken?: string;
+}> {
+  return await fetchWithAuth(
+    `/contacts/${encodeURIComponent(contactId)}/lock`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}
+
+export async function unlockContact(
+  contactId: string,
+  data: { password: string },
+): Promise<UnlockContactResponse> {
+  return await fetchWithAuth<UnlockContactResponse>(
+    `/contacts/${encodeURIComponent(contactId)}/unlock`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}
+
+export async function removeContactLock(
+  contactId: string,
+  data?: { currentPassword?: string },
+): Promise<{ success: boolean; isPasswordProtected: boolean }> {
+  return await fetchWithAuth(
+    `/contacts/${encodeURIComponent(contactId)}/lock`,
+    {
+      method: "DELETE",
+      body: JSON.stringify(data ?? {}),
+    },
+  );
+}
+

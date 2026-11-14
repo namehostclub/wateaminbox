@@ -68,6 +68,7 @@ import {
   getUserAvatarSources,
   getUserNames,
 } from "../../services/user.service.js";
+import { verifyUnlockToken } from "../../services/conversation-lock.service.js";
 import { getActiveSessionId } from "../../services/whatsapp/session.js";
 
 export const messageRoutes = new Hono();
@@ -171,6 +172,35 @@ messageRoutes.get(
       ))
         ? "failed"
         : "requesting";
+    }
+
+    const lock = await tenantDb
+      .selectFrom("conversation_locks")
+      .select(["id", "hint"])
+      .where((eb) =>
+        eb.or([
+          eb("contact_id", "=", contactId),
+          ...(historyConversationId ? [eb("conversation_id", "=", historyConversationId)] : []),
+        ]),
+      )
+      .executeTakeFirst();
+
+    if (lock) {
+      const unlockToken = c.req.header("x-conversation-unlock-token");
+      const isTokenValid =
+        verifyUnlockToken(unlockToken, contactId, companyId) ||
+        (historyConversationId ? verifyUnlockToken(unlockToken, historyConversationId, companyId) : false);
+
+      if (!isTokenValid) {
+        return c.json(
+          {
+            error: "Conversation is password protected",
+            locked: true,
+            hint: lock.hint ?? null,
+          },
+          423,
+        );
+      }
     }
 
     let query = tenantDb

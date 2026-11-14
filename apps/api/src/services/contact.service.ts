@@ -77,6 +77,8 @@ export interface ContactWithLastMessage {
   conversation_id: string | null;
   channel: string | null;
   provider: string | null;
+  is_password_protected?: boolean;
+  lock_hint?: string | null;
   last_message: {
     id: string;
     messageId: string | null;
@@ -182,6 +184,8 @@ async function loadContactsWithLastMessage(
       conversation_id: contact.conversation_id,
       channel: contact.channel,
       provider: contact.provider,
+      is_password_protected: Boolean(contact.is_password_protected),
+      lock_hint: contact.lock_hint,
       conversation_status: contact.conversation_status,
       active_case_id: contact.active_case_id,
       last_message: lastMessage,
@@ -274,6 +278,8 @@ async function queryContactPage(
     last_message_sent_by_user_id: string | null;
     conversation_status: "open" | "pending" | "resolved";
     active_case_id: string | null;
+    is_password_protected: boolean;
+    lock_hint: string | null;
   }>`
     WITH page AS MATERIALIZED (
     SELECT
@@ -409,7 +415,9 @@ async function queryContactPage(
         NULL
       ) as account_ids,
       page.conversation_status,
-      page.active_case_id
+      page.active_case_id,
+      (cl.id IS NOT NULL) as is_password_protected,
+      cl.hint as lock_hint
     FROM page
     JOIN ${schema}.${sql.ref("contacts")} c ON c.id = page.id
     LEFT JOIN ${schema}.${sql.ref("messages")} lm ON lm.id = page.last_message_id
@@ -419,6 +427,8 @@ async function queryContactPage(
       ON conv.id = page.conversation_id
     LEFT JOIN ${schema}.${sql.ref("channel_accounts")} acc
       ON acc.id = conv.channel_account_id
+    LEFT JOIN ${schema}.${sql.ref("conversation_locks")} cl
+      ON cl.contact_id = c.id
     ORDER BY page.last_message_at DESC NULLS LAST, page.id DESC
   `.execute(tenantDb);
 

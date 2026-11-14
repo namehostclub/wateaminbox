@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ChannelComposerGate } from "../components/chat/ChannelComposerGate";
@@ -26,6 +27,7 @@ import {
   type InboxConnectionState,
   resolveInboxConnectionState,
 } from "../components/chat/inbox-connection-state";
+import { LockedConversationScreen } from "../components/chat/LockedConversationScreen";
 import { MessageComposer } from "../components/chat/MessageComposer";
 import { MessageHeader } from "../components/chat/MessageHeader";
 import { MessageThread } from "../components/chat/MessageThread";
@@ -45,6 +47,8 @@ import {
 import { useWorkspace } from "../contexts/workspace-context";
 import { useChatPageState } from "../hooks/chat";
 import { useCustomerChats } from "../hooks/contact/useCustomerChats";
+import { useConversationLock } from "../hooks/useConversationLock";
+import { infiniteMessageKeys } from "../hooks/useInfiniteMessages";
 import { useKeyboardInset } from "../hooks/ui";
 import {
   useChannelAccountCapabilities,
@@ -68,6 +72,8 @@ import {
 
 export function ChatPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { isUnlocked } = useConversationLock();
 
   const { user } = useAuth();
   const { activeWorkspace, can } = useWorkspace();
@@ -395,8 +401,28 @@ export function ChatPage() {
             isTyping={isContactTyping}
             showBackButton
             onBack={handleBackFromConversation}
+            onLockStatusChange={() => {
+              queryClient.invalidateQueries({
+                queryKey: ["contact", selectedChatId],
+              });
+              queryClient.invalidateQueries({ queryKey: ["contacts"] });
+            }}
           />
-          {isSearchOpen && (
+          {Boolean(
+            threadContact.isPasswordProtected && !isUnlocked(threadContact.id),
+          ) ? (
+            <LockedConversationScreen
+              contact={threadContact}
+              onUnlocked={() => {
+                queryClient.invalidateQueries({
+                  queryKey: infiniteMessageKeys.list(selectedChatId),
+                });
+                queryClient.invalidateQueries({ queryKey: ["contacts"] });
+              }}
+            />
+          ) : (
+            <>
+              {isSearchOpen && (
             <ConversationSearch
               // Scoped to the thread on screen. The canonical contact's id
               // searched the surviving customer's other conversation, and the
@@ -538,6 +564,8 @@ export function ChatPage() {
               />
             )}
           </ComposerLifecycleArea>
+          </>
+          )}
         </>
       )}
     </MainContent>

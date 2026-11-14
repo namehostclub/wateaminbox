@@ -232,6 +232,8 @@ export interface Contact {
   channel?: string | null;
   provider?: string | null;
   conversationId?: string | null;
+  isPasswordProtected?: boolean;
+  lockHint?: string | null;
 }
 
 export interface GroupParticipant {

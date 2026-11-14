@@ -471,7 +471,8 @@ export async function fetchApi<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string) => fetchApi<T>(endpoint),
+  get: <T>(endpoint: string, options?: RequestInit) =>
+    fetchApi<T>(endpoint, options),
 
   post: <T>(endpoint: string, data?: unknown) =>
     fetchApi<T>(endpoint, {

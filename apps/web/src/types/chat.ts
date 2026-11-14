@@ -90,6 +90,8 @@ export interface Chat {
   updatedAt: Date;
   conversationStatus: ConversationLifecycleStatus;
   activeCaseId: string | null;
+  isPasswordProtected?: boolean;
+  lockHint?: string | null;
 }
 
 export interface ChatListProps {

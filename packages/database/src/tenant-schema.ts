@@ -154,6 +154,16 @@ export const TENANT_SCHEMA_CONTRACT = {
     "updated_at",
     "archived_at",
   ],
+  conversation_locks: [
+    "id",
+    "contact_id",
+    "conversation_id",
+    "password_hash",
+    "hint",
+    "created_by_user_id",
+    "created_at",
+    "updated_at",
+  ],
   conversation_notes: [
     "id",
     "conversation_id",

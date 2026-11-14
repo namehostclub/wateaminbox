@@ -44,6 +44,8 @@ export interface RawContactFromDb {
   conversation_id?: string | null;
   channel?: string | null;
   provider?: string | null;
+  is_password_protected?: boolean;
+  lock_hint?: string | null;
   created_at: Date | string;
   updated_at: Date | string;
   conversation_status?: "open" | "pending" | "resolved";
@@ -127,6 +129,8 @@ export interface TransformedContact {
   conversationId: string | null;
   channel: string | null;
   provider: string | null;
+  isPasswordProtected?: boolean;
+  lockHint?: string | null;
 }
 
 // ============================================================================
@@ -218,6 +222,8 @@ export function transformContact(
     provider:
       contact.provider ??
       (contact.connection_id ? "whatsapp_linked_device" : null),
+    isPasswordProtected: Boolean(contact.is_password_protected),
+    lockHint: contact.lock_hint ?? null,
   };
 }
 

@@ -1,11 +1,13 @@
 import type { Contact, WhatsAppConnectionIdentity } from "@wateaminbox/shared";
 import { formatLastSeen, isChannel } from "@wateaminbox/shared";
-import { ArrowLeft, Info, MoreVertical, Phone, Search } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Info, KeyRound, Lock, Phone, Search, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CONVERSATION_HEADER_INSET_CLASS } from "@/components/layout/conversation-chrome";
 import { useOptionalMobileLayout } from "@/components/layout/MobileLayout";
 import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback";
+import { EllipsisMenu, type EllipsisMenuItem } from "@/components/ui/ellipsis-menu";
+import { useConversationLock } from "@/hooks/useConversationLock";
 import { useGroup } from "@/hooks/useGroups";
 import { cn, formatPhoneLikeText } from "@/lib/utils";
 import type { CustomerChat } from "@/lib/api/contacts";
@@ -16,6 +18,10 @@ import {
   ConnectionBadge,
   ConnectionRoute,
 } from "./ConnectionIdentity";
+import {
+  ConversationLockDialog,
+  type LockDialogMode,
+} from "./ConversationLockDialog";
 
 interface MessageHeaderProps {
   contact: Contact | undefined;
@@ -49,6 +55,8 @@ interface MessageHeaderProps {
   thread?: CustomerChat;
   /** How many threads this customer has; more than one only after a merge. */
   threadCount?: number;
+  /** Callback when conversation lock status is updated */
+  onLockStatusChange?: (isProtected: boolean, hint?: string | null) => void;
 }
 
 /**
@@ -68,9 +76,72 @@ export function MessageHeader({
   isTyping = false,
   thread,
   threadCount = 1,
+  onLockStatusChange,
 }: MessageHeaderProps) {
   const { t } = useTranslation();
   const [isCallMenuOpen, setIsCallMenuOpen] = useState(false);
+  const [isLockDialogOpen, setIsLockDialogOpen] = useState(false);
+  const [lockDialogMode, setLockDialogMode] = useState<LockDialogMode>("set");
+  const { isUnlocked, lockNow } = useConversationLock();
+
+  const isProtected = Boolean(contact?.isPasswordProtected);
+  const unlocked = isUnlocked(contact?.id);
+
+  const ellipsisMenuItems = useMemo<EllipsisMenuItem[]>(() => {
+    const items: EllipsisMenuItem[] = [];
+
+    if (isProtected) {
+      if (unlocked) {
+        items.push({
+          id: "lock-now",
+          label: t("chat.lockNow", "Lock Chat Now"),
+          icon: Lock,
+          onClick: () => {
+            if (contact) lockNow(contact.id);
+          },
+        });
+      }
+      items.push({
+        id: "change-lock",
+        label: t("chat.changePasscode", "Change Passcode"),
+        icon: KeyRound,
+        onClick: () => {
+          setLockDialogMode("change");
+          setIsLockDialogOpen(true);
+        },
+      });
+      items.push({
+        id: "remove-lock",
+        label: t("chat.removeProtection", "Remove Protection"),
+        icon: Trash2,
+        destructive: true,
+        onClick: () => {
+          setLockDialogMode("remove");
+          setIsLockDialogOpen(true);
+        },
+      });
+    } else {
+      items.push({
+        id: "set-lock",
+        label: t("chat.lockConversation", "Lock Conversation"),
+        icon: Lock,
+        onClick: () => {
+          setLockDialogMode("set");
+          setIsLockDialogOpen(true);
+        },
+      });
+    }
+
+    if (onMore) {
+      items.push({
+        id: "more-options",
+        label: t("common.moreOptions", "More options"),
+        onClick: onMore,
+      });
+    }
+
+    return items;
+  }, [isProtected, unlocked, contact, lockNow, onMore, t]);
 
   const { data: group } = useGroup(contact?.isGroup ? contact.id : null);
   // Null on desktop, where the list and the thread are both on screen.
@@ -282,6 +353,19 @@ export function MessageHeader({
           </button>
         )}
 
+        {/* Quick Lock Now Button */}
+        {isProtected && unlocked && (
+          <button
+            type="button"
+            onClick={() => contact && lockNow(contact.id)}
+            className={actionButtonClass}
+            aria-label={t("chat.lockNow", "Lock Chat Now")}
+            title={t("chat.lockNow", "Lock Chat Now")}
+          >
+            <Lock className="size-5 text-amber-600 dark:text-amber-400" strokeWidth={1.9} aria-hidden="true" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onSearch}
@@ -294,22 +378,12 @@ export function MessageHeader({
           <Search className="size-5.5" strokeWidth={1.9} aria-hidden="true" />
         </button>
 
-        {/* Omitted when the host wires no handler, so the header never shows a
-            control that does nothing. */}
-        {onMore && (
-          <button
-            type="button"
-            onClick={onMore}
-            className={actionButtonClass}
-            aria-label={t("common.moreOptions", "More options")}
-          >
-            <MoreVertical
-              className="size-5.5"
-              strokeWidth={1.9}
-              aria-hidden="true"
-            />
-          </button>
-        )}
+        {/* More options menu with chat lock actions */}
+        <EllipsisMenu
+          items={ellipsisMenuItems}
+          triggerClassName={actionButtonClass}
+          align="right"
+        />
       </div>
 
       {/* Voice Call Action Modal */}
@@ -322,6 +396,19 @@ export function MessageHeader({
           jid={contact.jid}
           avatarUrl={contact.avatarUrl}
           contactId={contact.id}
+        />
+      )}
+
+      {/* Conversation Lock Dialog */}
+      {contact && (
+        <ConversationLockDialog
+          open={isLockDialogOpen}
+          onOpenChange={setIsLockDialogOpen}
+          contact={contact}
+          initialMode={lockDialogMode}
+          onSuccess={(newProtected, newHint) => {
+            onLockStatusChange?.(newProtected, newHint);
+          }}
         />
       )}
     </header>

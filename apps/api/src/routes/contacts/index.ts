@@ -55,6 +55,7 @@ import { customerChatsRoutes } from "./chats.js";
 import { firstChatAcknowledgmentRoutes } from "./first-chat-acknowledgment.js";
 import { importRoutes } from "./import.js";
 import { customerLifecycleRoutes } from "./lifecycle.js";
+import { contactLockRoutes } from "./lock.js";
 import { mergeRoutes } from "./merge.js";
 // Import sub-routes
 import { notesRoutes } from "./notes.js";
@@ -82,6 +83,7 @@ contactRoutes.use("/*", tenantMiddleware());
 // Mount sub-routes
 // Note: Import routes need to be mounted before /:id routes to avoid conflicts
 contactRoutes.route("/", importRoutes);
+contactRoutes.route("/", contactLockRoutes);
 contactRoutes.route("/", notesRoutes);
 contactRoutes.route("/", tagsRoutes);
 contactRoutes.route("/", assignmentRoutes);
@@ -283,6 +285,12 @@ contactRoutes.get("/:id", async (c) => {
     .where("contact_tags.contact_id", "=", contactId)
     .execute();
 
+  const lockRecord = await tenantDb
+    .selectFrom("conversation_locks")
+    .select(["id", "hint"])
+    .where("contact_id", "=", contactId)
+    .executeTakeFirst();
+
   return successData(c, {
     id: contact.id,
     jid: contact.jid,
@@ -316,6 +324,8 @@ contactRoutes.get("/:id", async (c) => {
         }
       : null,
     conversationId: conversation?.conversation_id ?? null,
+    isPasswordProtected: Boolean(lockRecord),
+    lockHint: lockRecord?.hint ?? null,
     channel:
       conversation?.channel ??
       (contact.whatsapp_connection_id ? "whatsapp" : null),

@@ -1,9 +1,10 @@
 import { formatChatListTime } from "@wateaminbox/shared";
-import { MessagesSquare, Users } from "lucide-react";
+import { Lock, MessagesSquare, Users } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback";
 import { useAuth } from "@/contexts/auth-context";
+import { useConversationLock } from "@/hooks/useConversationLock";
 import {
   extractPhoneFromJID,
   formatPhoneLikeText,
@@ -36,6 +37,12 @@ export const ChatListItem = memo(function ChatListItem({
 
   const { contact, lastMessage, unreadCount } = chat;
   const { user } = useAuth();
+  const { isUnlocked } = useConversationLock();
+
+  const isProtected = Boolean(
+    chat.isPasswordProtected || contact.isPasswordProtected,
+  );
+  const unlocked = isUnlocked(contact.id);
 
   // Memoize prefetch handler to prevent unnecessary re-renders
   const handlePrefetch = useCallback(() => {
@@ -110,10 +117,17 @@ export const ChatListItem = memo(function ChatListItem({
     }
   }, [contact.isGroup, lastMessage, user?.id, t]);
 
+  const displayPreview = useMemo(() => {
+    if (isProtected && !unlocked) {
+      return t("chat.protectedPreview", "🔒 Protected conversation");
+    }
+    return messagePreview;
+  }, [isProtected, unlocked, messagePreview, t]);
+
   // Build accessible label with contact name, message preview, and status
   const accessibleLabel = useMemo(() => {
     const parts = [displayName];
-    if (messagePreview) parts.push(messagePreview);
+    if (displayPreview) parts.push(displayPreview);
     if (formattedTime) parts.push(formattedTime);
     if (unreadCount > 0)
       parts.push(
@@ -139,7 +153,7 @@ export const ChatListItem = memo(function ChatListItem({
     return parts.join(", ");
   }, [
     displayName,
-    messagePreview,
+    displayPreview,
     formattedTime,
     unreadCount,
     chat.isMuted,
@@ -219,6 +233,22 @@ export const ChatListItem = memo(function ChatListItem({
             >
               {displayName}
             </span>
+            {isProtected && (
+              <span
+                className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[11px] font-medium shrink-0 ${
+                  unlocked
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                }`}
+                title={
+                  unlocked
+                    ? t("chat.unlockedSession", "Unlocked in this session")
+                    : t("chat.lockedChat", "Password protected")
+                }
+              >
+                <Lock className="w-3 h-3" />
+              </span>
+            )}
             {contact.isGroup && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border dark:border-emerald-800/40 shrink-0">
                 <Users className="w-3 h-3" />
@@ -262,7 +292,7 @@ export const ChatListItem = memo(function ChatListItem({
               </span>
             )}
             {/* Message Status Icon for sent messages */}
-            {lastMessage?.isFromMe && !lastMessage.isDeleted && (
+            {(!isProtected || unlocked) && lastMessage?.isFromMe && !lastMessage.isDeleted && (
               <span className="flex-shrink-0" aria-hidden="true">
                 {lastMessage.status === "read" && (
                   <svg
@@ -309,7 +339,7 @@ export const ChatListItem = memo(function ChatListItem({
                   : "text-gray-500 dark:text-dark-text-secondary"
               }`}
             >
-              {messagePreview}
+              {displayPreview}
             </span>
           </div>
 
