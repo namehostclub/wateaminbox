@@ -7,6 +7,8 @@ import {
   useTeamMemberIdentities,
 } from "@/hooks/useTeam";
 import { useWorkspace } from "../../contexts";
+import { MediaViewerProvider } from "@/contexts";
+import { MediaLightbox } from "./MediaLightbox";
 import { useMessageSelection } from "../../hooks/chat/useMessageSelection";
 import { useMessageVirtualization } from "../../hooks/chat/useMessageVirtualization";
 import { useCustomerChats } from "@/hooks/contact/useCustomerChats";
@@ -390,9 +392,10 @@ export function MessageThread({
   }
 
   return (
-    <div
-      className={`relative flex min-h-0 flex-1 flex-col ${CONVERSATION_CANVAS_CLASS}`}
-    >
+    <MediaViewerProvider messages={messages}>
+      <div
+        className={`relative flex min-h-0 flex-1 flex-col ${CONVERSATION_CANVAS_CLASS}`}
+      >
       {/* Selection mode header */}
       <MessageSelectionToolbar
         selectionMode={selectionMode}
@@ -506,6 +509,10 @@ export function MessageThread({
           onSelectMessages={enterSelectionMode}
         />
       )}
+
+      {/* Centralized WhatsApp Web & LightGallery Media Lightbox */}
+      <MediaLightbox />
     </div>
+  </MediaViewerProvider>
   );
 }

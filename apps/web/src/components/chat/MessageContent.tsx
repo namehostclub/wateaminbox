@@ -3,6 +3,7 @@ import { Maximize2, MessageCircle, Play, UserRound } from "lucide-react";
 import { lazy, type ReactNode, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback";
+import { useMediaViewer } from "@/contexts";
 import { useMessageActions } from "@/contexts/message-actions-context";
 import type { GroupParticipant } from "@/hooks/useGroups";
 import { cn, formatPhoneNumber } from "@/lib/utils";
@@ -46,6 +47,7 @@ export function MessageContent({
 }: MessageContentProps) {
   const { t } = useTranslation();
   const [mediaPreviewOpen, setMediaPreviewOpen] = useState(false);
+  const mediaViewer = useMediaViewer();
 
   if (message.isDeleted) {
     return (
@@ -115,7 +117,11 @@ export function MessageContent({
                 onClick={(event) => {
                   if (!enableMediaPreview) return;
                   event.stopPropagation();
-                  setMediaPreviewOpen(true);
+                  if (mediaViewer.totalCount > 0) {
+                    mediaViewer.openMedia(message.id);
+                  } else {
+                    setMediaPreviewOpen(true);
+                  }
                 }}
                 aria-label={`Open image: ${imageAlt}`}
                 tabIndex={enableMediaPreview ? 0 : -1}
@@ -190,7 +196,11 @@ export function MessageContent({
                 onClick={(event) => {
                   if (!enableMediaPreview) return;
                   event.stopPropagation();
-                  setMediaPreviewOpen(true);
+                  if (mediaViewer.totalCount > 0) {
+                    mediaViewer.openMedia(message.id);
+                  } else {
+                    setMediaPreviewOpen(true);
+                  }
                 }}
                 aria-label={`Play video: ${videoLabel}`}
                 tabIndex={enableMediaPreview ? 0 : -1}
@@ -445,7 +455,11 @@ export function MessageContent({
                 onClick={(event) => {
                   if (!enableMediaPreview) return;
                   event.stopPropagation();
-                  setMediaPreviewOpen(true);
+                  if (mediaViewer.totalCount > 0) {
+                    mediaViewer.openMedia(message.id);
+                  } else {
+                    setMediaPreviewOpen(true);
+                  }
                 }}
                 aria-label={t("chat.openSticker", "Open sticker")}
                 tabIndex={enableMediaPreview ? 0 : -1}

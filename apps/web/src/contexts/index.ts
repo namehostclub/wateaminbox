@@ -37,6 +37,11 @@ export {
   useTheme,
 } from "./theme-context";
 export {
+  type MediaViewerContextValue,
+  MediaViewerProvider,
+  useMediaViewer,
+} from "./MediaViewerContext";
+export {
   useHasRole,
   useIsAdmin,
   useWorkspace,

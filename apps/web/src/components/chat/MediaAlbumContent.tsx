@@ -1,6 +1,7 @@
 import type { Message } from "@wateaminbox/shared";
 import { Image as ImageIcon, Play, Video } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useMediaViewer } from "@/contexts";
 import type { GroupParticipant } from "@/hooks/useGroups";
 import { cn } from "@/lib/utils";
 import { LinkifiedText } from "./LinkifiedText";
@@ -35,6 +36,7 @@ export function MediaAlbumContent({
   const hiddenCount = Math.max(0, totalCount - visibleMessages.length);
   const captionMessage = messages.find((message) => message.content.trim());
   const caption = captionMessage?.content;
+  const mediaViewer = useMediaViewer();
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null,
   );
@@ -72,7 +74,11 @@ export function MediaAlbumContent({
               onClick={(event) => {
                 if (!enableMediaPreview || !mediaUrl) return;
                 event.stopPropagation();
-                setSelectedMessageId(albumMessage.id);
+                if (mediaViewer.totalCount > 0) {
+                  mediaViewer.openMedia(albumMessage.id);
+                } else {
+                  setSelectedMessageId(albumMessage.id);
+                }
               }}
               aria-label={enableMediaPreview ? `Open ${label}` : label}
               tabIndex={enableMediaPreview ? 0 : -1}
