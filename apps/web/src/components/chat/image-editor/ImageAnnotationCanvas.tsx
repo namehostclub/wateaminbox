@@ -67,7 +67,6 @@ export const ImageAnnotationCanvas = forwardRef<
     points: Point[];
   } | null>(null);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const lastMidPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
@@ -190,7 +189,7 @@ export const ImageAnnotationCanvas = forwardRef<
    * the unrotated image, using an inverse rotation transform.
    */
   const getNormalizedPoint = (
-    e: ReactPointerEvent<HTMLCanvasElement>,
+    e: ReactPointerEvent<HTMLCanvasElement> | PointerEvent,
     canvas: HTMLCanvasElement,
   ): Point => {
     const rect = canvas.getBoundingClientRect();
@@ -220,7 +219,7 @@ export const ImageAnnotationCanvas = forwardRef<
     return { x: nx, y: ny };
   };
 
-  // Direct 2D Canvas Drawing (Lightweight, 120 FPS, No React State Lag)
+  // Blazing Fast Real-time 2D Canvas Drawing (Zero Lag, Instant Cursor Tracking)
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || stageSize.width === 0 || stageSize.height === 0) return;
@@ -228,6 +227,8 @@ export const ImageAnnotationCanvas = forwardRef<
     const pt = getNormalizedPoint(e, canvas);
     const px = pt.x * stageSize.width;
     const py = pt.y * stageSize.height;
+    const cx = px * dpr;
+    const cy = py * dpr;
 
     if (activeTool === "pen" || activeTool === "highlighter") {
       const toolType = activeTool === "highlighter" ? "highlighter" : "pen";
@@ -236,28 +237,25 @@ export const ImageAnnotationCanvas = forwardRef<
         color: activeColor,
         points: [pt],
       };
-      lastPointRef.current = { x: px, y: py };
-      lastMidPointRef.current = { x: px, y: py };
+      lastPointRef.current = { x: cx, y: cy };
 
-      // Draw initial touch dot
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.save();
-        ctx.scale(dpr, dpr);
+        const strokeWidth =
+          (toolType === "highlighter"
+            ? Math.max(18, stageSize.width * 0.024)
+            : Math.max(3, stageSize.width * 0.0045)) * dpr;
+
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.strokeStyle = activeColor;
         ctx.fillStyle = activeColor;
-        const strokeWidth =
-          toolType === "highlighter"
-            ? Math.max(18, stageSize.width * 0.024)
-            : Math.max(3, stageSize.width * 0.0045);
         ctx.lineWidth = strokeWidth;
         ctx.globalAlpha = toolType === "highlighter" ? 0.35 : 1.0;
+
         ctx.beginPath();
-        ctx.arc(px, py, strokeWidth / 2, 0, Math.PI * 2);
+        ctx.arc(cx, cy, strokeWidth / 2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
       }
 
       try {
@@ -273,46 +271,36 @@ export const ImageAnnotationCanvas = forwardRef<
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!activeStrokeRef.current || !lastPointRef.current || !lastMidPointRef.current) return;
+    if (!activeStrokeRef.current || !lastPointRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const pt = getNormalizedPoint(e, canvas);
-    const px = pt.x * stageSize.width;
-    const py = pt.y * stageSize.height;
-
-    activeStrokeRef.current.points.push(pt);
-
-    // Direct incremental render using midpoint quadratic curve smoothing
     const ctx = canvas.getContext("2d");
-    if (ctx) {
-      const toolType = activeStrokeRef.current.tool;
-      const strokeWidth =
-        toolType === "highlighter"
-          ? Math.max(18, stageSize.width * 0.024)
-          : Math.max(3, stageSize.width * 0.0045);
+    if (!ctx) return;
 
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = activeStrokeRef.current.color;
-      ctx.lineWidth = strokeWidth;
-      ctx.globalAlpha = toolType === "highlighter" ? 0.35 : 1.0;
+    // Use coalesced events to process all high-frequency mouse samples without dropping frames
+    const nativeEvent = e.nativeEvent as PointerEvent;
+    const events =
+      typeof nativeEvent?.getCoalescedEvents === "function"
+        ? nativeEvent.getCoalescedEvents()
+        : [e];
 
-      const mid = {
-        x: (lastPointRef.current.x + px) / 2,
-        y: (lastPointRef.current.y + py) / 2,
-      };
+    for (const ev of events) {
+      const pt = getNormalizedPoint(ev, canvas);
+      const px = pt.x * stageSize.width;
+      const py = pt.y * stageSize.height;
+      const cx = px * dpr;
+      const cy = py * dpr;
 
+      activeStrokeRef.current.points.push(pt);
+
+      // Direct zero-latency line connection straight to current cursor position
       ctx.beginPath();
-      ctx.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
-      ctx.quadraticCurveTo(lastPointRef.current.x, lastPointRef.current.y, mid.x, mid.y);
+      ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+      ctx.lineTo(cx, cy);
       ctx.stroke();
-      ctx.restore();
 
-      lastPointRef.current = { x: px, y: py };
-      lastMidPointRef.current = mid;
+      lastPointRef.current = { x: cx, y: cy };
     }
   };
 
@@ -330,7 +318,6 @@ export const ImageAnnotationCanvas = forwardRef<
       setAnnotations((prev) => [...prev, finishedStroke]);
       activeStrokeRef.current = null;
       lastPointRef.current = null;
-      lastMidPointRef.current = null;
 
       try {
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
