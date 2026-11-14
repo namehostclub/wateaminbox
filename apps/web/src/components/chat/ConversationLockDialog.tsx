@@ -69,7 +69,7 @@ export function ConversationLockDialog({
         await removeContactLock(contact.id, {
           currentPassword: currentPassword.trim() || undefined,
         });
-        lockNow(contact.id);
+        lockNow(contact.id, contact.conversationId);
         updateConversationLockInCaches(queryClient, {
           contactId: contact.id,
           isPasswordProtected: false,
@@ -112,9 +112,9 @@ export function ConversationLockDialog({
       // When setting a new passcode, lock immediately on screen so protection takes effect.
       // When changing passcode on an already-unlocked chat, retain unlocked state if token provided.
       if (mode === "change" && response.unlockToken) {
-        registerToken(contact.id, response.unlockToken);
+        registerToken(contact.id, response.unlockToken, contact.conversationId);
       } else {
-        lockNow(contact.id);
+        lockNow(contact.id, contact.conversationId);
       }
 
       updateConversationLockInCaches(queryClient, {

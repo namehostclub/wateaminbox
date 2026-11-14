@@ -31,7 +31,7 @@ export function LockedConversationScreen({
     e.preventDefault();
     if (!passcode.trim() || isLoading) return;
 
-    const success = await unlock(contact.id, passcode.trim());
+    const success = await unlock(contact.id, passcode.trim(), contact.conversationId);
     if (success) {
       setPasscode("");
       onUnlocked?.();

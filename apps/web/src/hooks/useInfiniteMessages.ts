@@ -2,6 +2,7 @@ import { type InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import type { PaginatedMessages } from "@wateaminbox/shared";
 import { api } from "../lib/api";
 import { getCompanyId } from "../lib/api/client";
+import { getConversationUnlockToken } from "./useConversationLock";
 
 export const infiniteMessageKeys = {
   get all() {
@@ -41,20 +42,10 @@ export async function fetchMessagesPage({
     params.set("cursor", cursor);
   }
 
-  let headers: Record<string, string> | undefined;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = sessionStorage.getItem("conv_lock_tokens_v1");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed[conversationId]) {
-          headers = { "x-conversation-unlock-token": parsed[conversationId] };
-        }
-      }
-    } catch {
-      // Ignore sessionStorage parsing errors
-    }
-  }
+  const unlockToken = getConversationUnlockToken(conversationId);
+  const headers = unlockToken
+    ? { "x-conversation-unlock-token": unlockToken }
+    : undefined;
 
   return api.get<PaginatedMessages>(
     `/conversations/${conversationId}/messages?${params.toString()}`,

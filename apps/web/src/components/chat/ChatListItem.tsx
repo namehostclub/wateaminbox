@@ -1,5 +1,5 @@
 import { formatChatListTime } from "@wateaminbox/shared";
-import { Lock, MessagesSquare, Users } from "lucide-react";
+import { Lock, LockOpen, MessagesSquare, Users } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback";
@@ -246,7 +246,11 @@ export const ChatListItem = memo(function ChatListItem({
                     : t("chat.lockedChat", "Password protected")
                 }
               >
-                <Lock className="w-3 h-3" />
+                {unlocked ? (
+                  <LockOpen className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                )}
               </span>
             )}
             {contact.isGroup && (

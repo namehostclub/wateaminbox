@@ -1,6 +1,6 @@
 import type { Contact, WhatsAppConnectionIdentity } from "@wateaminbox/shared";
 import { formatLastSeen, isChannel } from "@wateaminbox/shared";
-import { ArrowLeft, Info, KeyRound, Lock, Phone, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, KeyRound, Lock, LockOpen, Phone, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CONVERSATION_HEADER_INSET_CLASS } from "@/components/layout/conversation-chrome";
@@ -252,7 +252,11 @@ export function MessageHeader({
                     : t("chat.protectedLocked", "Protected (Locked)")
                 }
               >
-                <Lock className="w-3 h-3" />
+                {unlocked ? (
+                  <LockOpen className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                )}
               </span>
             )}
             {/* The account pill needs room to stay legible; on a phone the
@@ -373,12 +377,13 @@ export function MessageHeader({
         {isProtected && unlocked && (
           <button
             type="button"
-            onClick={() => contact && lockNow(contact.id)}
-            className={actionButtonClass}
+            onClick={() => contact && lockNow(contact.id, contact.conversationId)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 mr-1 rounded-md text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition-colors shadow-xs"
             aria-label={t("chat.lockNow", "Lock Chat Now")}
             title={t("chat.lockNow", "Lock Chat Now")}
           >
-            <Lock className="size-5 text-amber-600 dark:text-amber-400" strokeWidth={1.9} aria-hidden="true" />
+            <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>{t("chat.lockNow", "Lock")}</span>
           </button>
         )}
 
