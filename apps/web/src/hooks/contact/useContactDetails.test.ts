@@ -5,8 +5,12 @@ import { queryKeys } from "../query-keys";
 import { groupKeys, type GroupDetail } from "../useGroups";
 import {
   applyContactUpdateToCaches,
+  updateConversationLockInCaches,
   type ContactDetail,
 } from "./useContactDetails";
+import { chatKeys, type ChatListPage } from "../useChats";
+import type { Chat } from "@/types/chat";
+import type { InfiniteData } from "@tanstack/react-query";
 
 const COMPANY_ID = "company-a";
 const GROUP_ID = "group-1";
@@ -197,5 +201,64 @@ describe("applying a contact update to the caches that render it", () => {
         update: contactDetail({ id: "never-opened" }),
       }),
     ).not.toThrow();
+  });
+});
+
+describe("updateConversationLockInCaches", () => {
+  test("updates contact detail cache and infinite chat list cache", () => {
+    const client = new QueryClient();
+    setCompanyId(COMPANY_ID);
+
+    // Seed contact detail
+    client.setQueryData(
+      queryKeys.contacts.detail(CONTACT_ID),
+      contactDetail({ id: CONTACT_ID, isPasswordProtected: false }),
+    );
+
+    // Seed infinite chat list
+    const fakeChat: Chat = {
+      id: CONTACT_ID,
+      contact: {
+        id: CONTACT_ID,
+        phoneNumber: "+1234567890",
+        name: "Test Customer",
+        isPasswordProtected: false,
+      },
+      unreadCount: 0,
+      isPinned: false,
+      isMuted: false,
+      isArchived: false,
+      updatedAt: new Date(),
+      conversationStatus: "open",
+      activeCaseId: null,
+      isPasswordProtected: false,
+    };
+
+    const infiniteKey = [...chatKeys.lists(), "infinite"];
+    client.setQueryData<InfiniteData<ChatListPage, number>>(infiniteKey, {
+      pages: [{ chats: [fakeChat], nextOffset: undefined }],
+      pageParams: [0],
+    });
+
+    updateConversationLockInCaches(client, {
+      contactId: CONTACT_ID,
+      isPasswordProtected: true,
+      lockHint: "test-hint",
+    });
+
+    // Check contact detail cache
+    const updatedContact = client.getQueryData<ContactDetail>(
+      queryKeys.contacts.detail(CONTACT_ID),
+    );
+    expect(updatedContact?.isPasswordProtected).toBe(true);
+    expect(updatedContact?.lockHint).toBe("test-hint");
+
+    // Check chat list cache
+    const updatedChats = client.getQueryData<InfiniteData<ChatListPage, number>>(infiniteKey);
+    const updatedChat = updatedChats?.pages[0]?.chats[0];
+    expect(updatedChat?.isPasswordProtected).toBe(true);
+    expect(updatedChat?.lockHint).toBe("test-hint");
+    expect(updatedChat?.contact.isPasswordProtected).toBe(true);
+    expect(updatedChat?.contact.lockHint).toBe("test-hint");
   });
 });

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { QueryClient } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { ApiRequestError, api } from "@/lib/api/client";
 import { formatPhoneLikeText } from "@/lib/utils";
 import { queryKeys } from "../query-keys";
 import { groupKeys, type GroupDetail } from "../useGroups";
+import { chatKeys, type ChatListPage } from "../useChats";
 
 /**
  * Contact detail from API with extended fields
@@ -27,6 +28,8 @@ export interface ContactDetail {
   conversationId?: string | null;
   channel?: string | null;
   provider?: string | null;
+  isPasswordProtected?: boolean;
+  lockHint?: string | null;
   connection: {
     id: string;
     name: string | null;
@@ -153,6 +156,66 @@ export function applyContactUpdateToCaches(
     },
   );
   queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+}
+
+/**
+ * Updates conversation lock state across all relevant caches (contact detail and chat lists).
+ */
+export function updateConversationLockInCaches(
+  queryClient: QueryClient,
+  params: {
+    contactId: string;
+    isPasswordProtected: boolean;
+    lockHint?: string | null;
+  },
+): void {
+  const { contactId, isPasswordProtected, lockHint = null } = params;
+
+  // 1. Update contact detail cache
+  queryClient.setQueryData(
+    queryKeys.contacts.detail(contactId),
+    (old: ContactDetail | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        isPasswordProtected,
+        lockHint,
+      };
+    },
+  );
+
+  // 2. In-place update for all infinite chat lists
+  queryClient.setQueriesData<InfiniteData<ChatListPage, number>>(
+    { queryKey: [...chatKeys.lists(), "infinite"] },
+    (oldData) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page) => ({
+          ...page,
+          chats: page.chats.map((chat) => {
+            if (chat.id === contactId || chat.contact.id === contactId) {
+              return {
+                ...chat,
+                isPasswordProtected,
+                lockHint,
+                contact: {
+                  ...chat.contact,
+                  isPasswordProtected,
+                  lockHint,
+                },
+              };
+            }
+            return chat;
+          }),
+        })),
+      };
+    },
+  );
+
+  // 3. Invalidate caches for background refetch
+  queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
 }
 
 /**

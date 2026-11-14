@@ -239,6 +239,22 @@ export function MessageHeader({
             <h2 className="truncate text-[16px] font-semibold leading-5 tracking-[-0.01em] text-[#111b21] dark:text-dark-text-primary">
               {displayName}
             </h2>
+            {isProtected && (
+              <span
+                className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[11px] font-medium shrink-0 ${
+                  unlocked
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                }`}
+                title={
+                  unlocked
+                    ? t("chat.protectedUnlocked", "Protected (Unlocked)")
+                    : t("chat.protectedLocked", "Protected (Locked)")
+                }
+              >
+                <Lock className="w-3 h-3" />
+              </span>
+            )}
             {/* The account pill needs room to stay legible; on a phone the
                 same routing is carried by the status line below instead. */}
             {(channel || connection) && (

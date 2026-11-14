@@ -66,6 +66,8 @@ export interface ContactApiResponse {
   conversationId?: string | null;
   channel?: string | null;
   provider?: string | null;
+  isPasswordProtected?: boolean;
+  lockHint?: string | null;
 }
 
 /**
@@ -113,6 +115,8 @@ export function transformContactToChat(contact: ContactApiResponse): Chat {
       conversationId: contact.conversationId,
       channel: contact.channel,
       provider: contact.provider,
+      isPasswordProtected: Boolean(contact.isPasswordProtected),
+      lockHint: contact.lockHint ?? null,
     },
     lastMessage: contact.lastMessage
       ? {
@@ -143,6 +147,8 @@ export function transformContactToChat(contact: ContactApiResponse): Chat {
       toDate(contact.lastMessageAt) ?? toDate(contact.updatedAt) ?? new Date(),
     conversationStatus: contact.conversationStatus,
     activeCaseId: contact.activeCaseId,
+    isPasswordProtected: Boolean(contact.isPasswordProtected),
+    lockHint: contact.lockHint ?? null,
   };
 }
 

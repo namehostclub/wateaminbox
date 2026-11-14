@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Lock, ShieldCheck, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConversationLock } from "@/hooks/useConversationLock";
+import { updateConversationLockInCaches } from "@/hooks/contact/useContactDetails";
 import { removeContactLock, setContactLock } from "@/lib/api/contacts";
 import type { Contact } from "@wateaminbox/shared";
 
@@ -42,6 +44,7 @@ export function ConversationLockDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { registerToken, lockNow } = useConversationLock();
 
   // Reset form when dialog opens/mode changes
@@ -67,6 +70,11 @@ export function ConversationLockDialog({
           currentPassword: currentPassword.trim() || undefined,
         });
         lockNow(contact.id);
+        updateConversationLockInCaches(queryClient, {
+          contactId: contact.id,
+          isPasswordProtected: false,
+          lockHint: null,
+        });
         onSuccess?.(false, null);
         onOpenChange(false);
       } catch (err: any) {
@@ -101,9 +109,19 @@ export function ConversationLockDialog({
         currentPassword: mode === "change" ? currentPassword.trim() : undefined,
       });
 
-      if (response.unlockToken) {
+      // When setting a new passcode, lock immediately on screen so protection takes effect.
+      // When changing passcode on an already-unlocked chat, retain unlocked state if token provided.
+      if (mode === "change" && response.unlockToken) {
         registerToken(contact.id, response.unlockToken);
+      } else {
+        lockNow(contact.id);
       }
+
+      updateConversationLockInCaches(queryClient, {
+        contactId: contact.id,
+        isPasswordProtected: true,
+        lockHint: hint.trim() || null,
+      });
 
       onSuccess?.(true, hint.trim() || null);
       onOpenChange(false);

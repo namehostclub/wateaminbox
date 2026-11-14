@@ -37,6 +37,8 @@ function mapContactDetailToContact(detail: ContactDetail): Contact {
     lastSeen: detail.lastSeen ? new Date(detail.lastSeen) : undefined,
     isGroup: detail.isGroup,
     connection: detail.connection,
+    isPasswordProtected: Boolean(detail.isPasswordProtected),
+    lockHint: detail.lockHint ?? null,
   };
 }
 

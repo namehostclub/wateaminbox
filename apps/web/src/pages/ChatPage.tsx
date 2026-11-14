@@ -47,6 +47,8 @@ import {
 import { useWorkspace } from "../contexts/workspace-context";
 import { useChatPageState } from "../hooks/chat";
 import { useCustomerChats } from "../hooks/contact/useCustomerChats";
+import { updateConversationLockInCaches } from "../hooks/contact/useContactDetails";
+import { queryKeys } from "../hooks/query-keys";
 import { useConversationLock } from "../hooks/useConversationLock";
 import { infiniteMessageKeys } from "../hooks/useInfiniteMessages";
 import { useKeyboardInset } from "../hooks/ui";
@@ -402,10 +404,17 @@ export function ChatPage() {
             showBackButton
             onBack={handleBackFromConversation}
             onLockStatusChange={() => {
-              queryClient.invalidateQueries({
-                queryKey: ["contact", selectedChatId],
+              updateConversationLockInCaches(queryClient, {
+                contactId: threadContact.id,
+                isPasswordProtected: Boolean(threadContact.isPasswordProtected),
+                lockHint: threadContact.lockHint,
               });
-              queryClient.invalidateQueries({ queryKey: ["contacts"] });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.contacts.all,
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.chats.all,
+              });
             }}
           />
           {Boolean(
@@ -417,7 +426,9 @@ export function ChatPage() {
                 queryClient.invalidateQueries({
                   queryKey: infiniteMessageKeys.list(selectedChatId),
                 });
-                queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                queryClient.invalidateQueries({
+                  queryKey: queryKeys.chats.all,
+                });
               }}
             />
           ) : (
