@@ -1,9 +1,12 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { CalendarClock, FileText, Headphones, Loader2, Plus, Send, X } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useEffect, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ScheduleMessagePopover } from "./ScheduleMessagePopover";
 import { useTranslation } from "react-i18next";
 import type { PendingAttachment } from "./media-gallery";
+import { ImageAnnotationCanvas } from "./image-editor/ImageAnnotationCanvas";
+import { ImageEditorToolbar } from "./image-editor/ImageEditorToolbar";
+import type { EditorTool, ImageEditorHandle } from "./image-editor/types";
 
 const MAX_CAPTION_LENGTH = 1024;
 
@@ -51,6 +54,13 @@ export function AttachmentPreviewDialog({
   const [isSending, setIsSending] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [showSchedulePopover, setShowSchedulePopover] = useState(false);
+  const [editorTool, setEditorTool] = useState<EditorTool>("select");
+  const [editorColor, setEditorColor] = useState<string>("#facc15");
+  const [rotation, setRotation] = useState<number>(0);
+  const [isHd, setIsHd] = useState<boolean>(false);
+  const [canUndo, setCanUndo] = useState<boolean>(false);
+  const [canClear, setCanClear] = useState<boolean>(false);
+  const canvasRef = useRef<ImageEditorHandle>(null);
   const isBusy = isSending || isScheduling;
   const file = attachments[activeIndex]?.file ?? attachments[0]?.file;
   const isVideo = file.type.startsWith("video/");
@@ -86,6 +96,10 @@ export function AttachmentPreviewDialog({
     if (activeIndex >= attachments.length) {
       setActiveIndex(Math.max(0, attachments.length - 1));
     }
+    setEditorTool("select");
+    setRotation(0);
+    setCanUndo(false);
+    setCanClear(false);
   }, [activeIndex, attachments.length]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -94,8 +108,18 @@ export function AttachmentPreviewDialog({
 
     setIsSending(true);
     try {
+      let currentFile = file;
+      if (canvasRef.current?.hasEdits()) {
+        const exported = await canvasRef.current.exportEditedFile();
+        if (exported) {
+          currentFile = exported;
+        }
+      }
+      const filesToSend = attachments.map((att, idx) =>
+        idx === activeIndex ? currentFile : att.file,
+      );
       const wasSent = await onSend(
-        attachments.map((attachment) => attachment.file),
+        filesToSend,
         attachmentType,
         caption.trim(),
       );
@@ -110,8 +134,15 @@ export function AttachmentPreviewDialog({
 
     setIsScheduling(true);
     try {
+      let currentFile = file;
+      if (canvasRef.current?.hasEdits()) {
+        const exported = await canvasRef.current.exportEditedFile();
+        if (exported) {
+          currentFile = exported;
+        }
+      }
       const wasScheduled = await onSchedule(
-        file,
+        currentFile,
         attachmentType,
         caption.trim(),
         scheduledAtIso,
@@ -164,30 +195,54 @@ export function AttachmentPreviewDialog({
             )}
           </DialogPrimitive.Description>
 
-          <header className="flex min-h-16 items-center gap-3 border-b border-white/10 bg-[#202c33] px-3 sm:px-5">
-            <DialogPrimitive.Close asChild>
-              <button
-                type="button"
-                disabled={isBusy}
-                className="grid size-10 shrink-0 place-items-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]"
-                aria-label={t("chat.cancelAttachment", "Cancel attachment")}
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </DialogPrimitive.Close>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white/95">
-                {attachments.length > 1
-                  ? t("chat.selectedMediaCount", {
-                      count: attachments.length,
-                      defaultValue: "{{count}} selected",
-                    })
-                  : file.name}
-              </p>
-              <p className="text-xs text-white/55">
-                {attachments.length > 1 ? file.name : formatFileSize(file.size)}
-              </p>
+          <header className="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#202c33] px-3 sm:px-5">
+            <div className="flex items-center gap-3 min-w-0">
+              <DialogPrimitive.Close asChild>
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  className="grid size-10 shrink-0 place-items-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a884]"
+                  aria-label={t("chat.cancelAttachment", "Cancel attachment")}
+                >
+                  <X className="size-5" aria-hidden="true" />
+                </button>
+              </DialogPrimitive.Close>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-white/95">
+                  {attachments.length > 1
+                    ? t("chat.selectedMediaCount", {
+                        count: attachments.length,
+                        defaultValue: "{{count}} selected",
+                      })
+                    : file.name}
+                </p>
+                <p className="text-xs text-white/55">
+                  {attachments.length > 1 ? file.name : formatFileSize(file.size)}
+                </p>
+              </div>
             </div>
+
+            {/* WhatsApp Web Image Editor Toolbar */}
+            {isVisualMedia && !isVideo && (
+              <ImageEditorToolbar
+                activeTool={editorTool}
+                onSelectTool={setEditorTool}
+                activeColor={editorColor}
+                onSelectColor={setEditorColor}
+                isHd={isHd}
+                onToggleHd={() => setIsHd((prev) => !prev)}
+                onRotate={() => setRotation((prev) => (prev + 90) % 360)}
+                onAddEmoji={(emoji) => {
+                  window.dispatchEvent(
+                    new CustomEvent("add-image-editor-emoji", { detail: emoji }),
+                  );
+                }}
+                onUndo={() => canvasRef.current?.undo()}
+                canUndo={canUndo}
+                onClear={() => canvasRef.current?.clear()}
+                canClear={canClear}
+              />
+            )}
           </header>
 
           <div className="flex min-h-56 flex-1 items-center justify-center overflow-auto bg-[#0b141a] p-4 sm:min-h-96 sm:p-8">
@@ -201,10 +256,17 @@ export function AttachmentPreviewDialog({
                   aria-label={`Preview ${file.name}`}
                 />
               ) : (
-                <img
-                  src={previewUrls[activeIndex]}
-                  alt={`Preview ${file.name}`}
-                  className="max-h-[58vh] max-w-full rounded-lg object-contain shadow-2xl shadow-black/30"
+                <ImageAnnotationCanvas
+                  key={`${activeIndex}-${previewUrls[activeIndex]}`}
+                  ref={canvasRef}
+                  imageSrc={previewUrls[activeIndex]}
+                  originalFile={file}
+                  activeTool={editorTool}
+                  activeColor={editorColor}
+                  rotation={rotation}
+                  isHd={isHd}
+                  onHasEditsChange={setCanClear}
+                  onCanUndoChange={setCanUndo}
                 />
               )
             ) : isAudio && previewUrls[activeIndex] ? (
