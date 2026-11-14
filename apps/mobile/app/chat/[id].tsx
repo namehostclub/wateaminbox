@@ -15,6 +15,7 @@ import {
   Mic,
   Paperclip,
   Pause,
+  Phone,
   PhoneIncoming,
   PhoneMissed,
   Play,
@@ -31,6 +32,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -106,6 +108,49 @@ export default function ChatDetailScreen() {
     });
   }, [conversationId, queryClient]);
 
+  const handleCallPress = () => {
+    const rawNumber =
+      (conversationData as any)?.phoneNumber ||
+      ((conversationData as any)?.jid
+        ? (conversationData as any).jid.split("@")[0].replace(/:\d+$/, "")
+        : "");
+    const cleanNumber = rawNumber ? rawNumber.replace(/[^0-9+]/g, "") : "";
+    if (!cleanNumber) {
+      Alert.alert(
+        "No Phone Number",
+        "This contact does not have a direct phone number available to call.",
+      );
+      return;
+    }
+
+    const digitsOnly = cleanNumber.replace(/\+/g, "");
+
+    Alert.alert(
+      `Call ${conversationData?.displayName || "Contact"}`,
+      cleanNumber,
+      [
+        {
+          text: "Call on WhatsApp",
+          onPress: () => {
+            Linking.openURL(`whatsapp://send?phone=${digitsOnly}`).catch(() => {
+              Linking.openURL(`https://wa.me/${digitsOnly}`);
+            });
+          },
+        },
+        {
+          text: "Dial Phone Number",
+          onPress: () => {
+            Linking.openURL(`tel:${cleanNumber}`);
+          },
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+    );
+  };
+
   // Configure Header
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -121,6 +166,15 @@ export default function ChatDetailScreen() {
       ),
       headerRight: () => (
         <View style={styles.headerRightContainer}>
+          {!(conversationData as any)?.isGroup && (
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={handleCallPress}
+              accessibilityLabel="Call contact"
+            >
+              <Phone size={18} color="#00a884" />
+            </TouchableOpacity>
+          )}
           {conversationData?.status === "resolved" ? (
             <TouchableOpacity
               style={styles.headerActionButton}

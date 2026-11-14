@@ -1,6 +1,7 @@
 import type { Contact, WhatsAppConnectionIdentity } from "@wateaminbox/shared";
 import { formatLastSeen, isChannel } from "@wateaminbox/shared";
-import { ArrowLeft, Info, MoreVertical, Search } from "lucide-react";
+import { ArrowLeft, Info, MoreVertical, Phone, Search } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CONVERSATION_HEADER_INSET_CLASS } from "@/components/layout/conversation-chrome";
 import { useOptionalMobileLayout } from "@/components/layout/MobileLayout";
@@ -8,6 +9,7 @@ import { IdentityAvatarFallback } from "@/components/ui/identity-avatar-fallback
 import { useGroup } from "@/hooks/useGroups";
 import { cn, formatPhoneLikeText } from "@/lib/utils";
 import type { CustomerChat } from "@/lib/api/contacts";
+import { CallActionModal } from "./CallActionModal";
 import { ChannelBadge, channelLabel } from "./ChannelIdentity";
 import {
   ChannelRoute,
@@ -68,6 +70,7 @@ export function MessageHeader({
   threadCount = 1,
 }: MessageHeaderProps) {
   const { t } = useTranslation();
+  const [isCallMenuOpen, setIsCallMenuOpen] = useState(false);
 
   const { data: group } = useGroup(contact?.isGroup ? contact.id : null);
   // Null on desktop, where the list and the thread are both on screen.
@@ -266,6 +269,19 @@ export function MessageHeader({
           </button>
         )}
 
+        {/* Voice Call Option */}
+        {!contact.isGroup && (
+          <button
+            type="button"
+            onClick={() => setIsCallMenuOpen(true)}
+            className={actionButtonClass}
+            aria-label={t("chat.voiceCall", "Call contact")}
+            title={t("chat.voiceCall", "Call contact")}
+          >
+            <Phone className="size-5" strokeWidth={1.9} aria-hidden="true" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onSearch}
@@ -295,6 +311,19 @@ export function MessageHeader({
           </button>
         )}
       </div>
+
+      {/* Voice Call Action Modal */}
+      {!contact.isGroup && (
+        <CallActionModal
+          open={isCallMenuOpen}
+          onOpenChange={setIsCallMenuOpen}
+          contactName={displayName}
+          phoneNumber={contact.phoneNumber}
+          jid={contact.jid}
+          avatarUrl={contact.avatarUrl}
+          contactId={contact.id}
+        />
+      )}
     </header>
   );
 }

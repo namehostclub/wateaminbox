@@ -121,6 +121,16 @@
     "registrationFailed": "Registration failed"
   },
   "chat": {
+    "voiceCall": "Voice call",
+    "callContact": "Call {{name}}",
+    "callOnWhatsApp": "Call on WhatsApp",
+    "openWhatsAppClient": "Open WhatsApp app to voice call",
+    "dialPhoneNumber": "Dial Phone Number",
+    "callViaSoftphone": "Dial via FaceTime, Phone, or softphone",
+    "copyNumber": "Copy Phone Number",
+    "phoneCopied": "Phone number copied to clipboard",
+    "noPhoneAvailable": "No direct phone number",
+    "noPhoneNotice": "This contact does not have a valid direct phone number to call.",
     "sendMessage": "Send Message",
     "online": "Online",
     "offline": "Offline",
