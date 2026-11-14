@@ -1,7 +1,9 @@
 export type EditorTool = "select" | "pen" | "highlighter" | "text" | "sticker";
 
 export interface Point {
+  /** Normalized X coordinate [0-1] relative to image width */
   x: number;
+  /** Normalized Y coordinate [0-1] relative to image height */
   y: number;
 }
 

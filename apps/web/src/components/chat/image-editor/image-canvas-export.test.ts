@@ -13,6 +13,9 @@ describe("image-canvas-export", () => {
       moveTo: () => calls.push("moveTo"),
       lineTo: () => calls.push("lineTo"),
       stroke: () => calls.push("stroke"),
+      quadraticCurveTo: () => calls.push("quadraticCurveTo"),
+      arc: () => calls.push("arc"),
+      fill: () => calls.push("fill"),
       strokeText: () => calls.push("strokeText"),
       fillText: () => calls.push("fillText"),
       set lineCap(_v: string) {},
@@ -66,6 +69,55 @@ describe("image-canvas-export", () => {
     expect(calls).toContain("beginPath");
     expect(calls).toContain("stroke");
     expect(calls).toContain("fillText");
+  });
+
+  test("renders normalized [0-1] coordinates with quadratic bezier smoothing", () => {
+    const calls: string[] = [];
+    const mockCtx = {
+      save: () => calls.push("save"),
+      restore: () => calls.push("restore"),
+      beginPath: () => calls.push("beginPath"),
+      moveTo: () => calls.push("moveTo"),
+      lineTo: () => calls.push("lineTo"),
+      quadraticCurveTo: () => calls.push("quadraticCurveTo"),
+      arc: () => calls.push("arc"),
+      fill: () => calls.push("fill"),
+      stroke: () => calls.push("stroke"),
+      strokeText: () => calls.push("strokeText"),
+      fillText: () => calls.push("fillText"),
+      set lineCap(_v: string) {},
+      set lineJoin(_v: string) {},
+      set strokeStyle(_v: string) {},
+      set fillStyle(_v: string) {},
+      set lineWidth(_v: number) {},
+      set globalAlpha(_v: number) {},
+      set font(_v: string) {},
+      set textBaseline(_v: string) {},
+      set textAlign(_v: string) {},
+    } as unknown as CanvasRenderingContext2D;
+
+    const items: AnnotationItem[] = [
+      {
+        id: "stroke-smooth",
+        type: "stroke",
+        tool: "pen",
+        color: "#f97316",
+        width: 4,
+        // Normalized coordinates across center of image
+        points: [
+          { x: 0.1, y: 0.1 },
+          { x: 0.2, y: 0.15 },
+          { x: 0.3, y: 0.25 },
+          { x: 0.4, y: 0.35 },
+        ],
+      },
+    ];
+
+    renderAllAnnotations(mockCtx, items, 1000, 800, 1);
+    expect(calls).toContain("beginPath");
+    expect(calls).toContain("moveTo");
+    expect(calls).toContain("quadraticCurveTo");
+    expect(calls).toContain("stroke");
   });
 });
 

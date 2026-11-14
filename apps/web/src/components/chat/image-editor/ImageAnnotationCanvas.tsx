@@ -17,6 +17,7 @@ import type {
   EditorTool,
   EmojiAnnotation,
   ImageEditorHandle,
+  Point,
   TextAnnotation,
 } from "./types";
 
@@ -52,12 +53,23 @@ export const ImageAnnotationCanvas = forwardRef<
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
-  const [currentStroke, setCurrentStroke] = useState<DrawStroke | null>(null);
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
   const [textInputVal, setTextInputVal] = useState("");
   const [editingTextPos, setEditingTextPos] = useState<{ x: number; y: number } | null>(null);
 
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  // Exact rendered stage dimensions (in CSS pixels, unrotated)
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
+  // Direct active drawing refs (Zero React re-renders while mouse is dragging!)
+  const activeStrokeRef = useRef<{
+    tool: "pen" | "highlighter";
+    color: string;
+    points: Point[];
+  } | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const lastMidPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
   // Update undo & edit callbacks
   useEffect(() => {
@@ -66,47 +78,53 @@ export const ImageAnnotationCanvas = forwardRef<
     onCanUndoChange?.(annotations.length > 0);
   }, [annotations.length, rotation, onHasEditsChange, onCanUndoChange]);
 
-  // Sync canvas dimensions with image display dimensions
-  const updateCanvasDimensions = useCallback(() => {
+  // Sync stage dimensions with rendered image dimensions
+  const updateStageDimensions = useCallback(() => {
     const img = imageRef.current;
-    if (!img || !img.complete) return;
-    const w = img.clientWidth;
-    const h = img.clientHeight;
+    if (!img) return;
+    const w = img.clientWidth || img.offsetWidth;
+    const h = img.clientHeight || img.offsetHeight;
     if (w > 0 && h > 0) {
-      setCanvasSize({ width: w, height: h });
+      setStageSize({ width: w, height: h });
     }
   }, []);
 
   useEffect(() => {
-    window.addEventListener("resize", updateCanvasDimensions);
-    return () => window.removeEventListener("resize", updateCanvasDimensions);
-  }, [updateCanvasDimensions]);
+    const img = imageRef.current;
+    if (!img) return;
+    const ro = new ResizeObserver(() => {
+      updateStageDimensions();
+    });
+    ro.observe(img);
+    return () => ro.disconnect();
+  }, [updateStageDimensions]);
 
-  // Redraw canvas whenever annotations or canvasSize change
+  // Redraw canvas whenever annotations, rotation, or stageSize change
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || stageSize.width === 0 || stageSize.height === 0) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const itemsToDraw = currentStroke
-      ? [...annotations, currentStroke]
-      : annotations;
+    // Scale for High-DPI / Retina screens
+    ctx.scale(dpr, dpr);
 
     renderAllAnnotations(
       ctx,
-      itemsToDraw,
-      canvas.width,
-      canvas.height,
-      canvas.width > 0 ? canvas.width / (imageRef.current?.naturalWidth || canvas.width) : 1,
+      annotations,
+      stageSize.width,
+      stageSize.height,
+      1,
     );
-  }, [annotations, currentStroke]);
+
+    ctx.restore();
+  }, [annotations, stageSize, dpr]);
 
   useEffect(() => {
     redrawCanvas();
-  }, [redrawCanvas, canvasSize]);
+  }, [redrawCanvas]);
 
   // Expose imperative handle methods
   useImperativeHandle(
@@ -147,7 +165,7 @@ export const ImageAnnotationCanvas = forwardRef<
         id: `emoji-${Date.now()}`,
         type: "emoji",
         emoji,
-        x: 50, // Center
+        x: 50, // Center [0-100]
         y: 50,
         size: 48,
       };
@@ -156,7 +174,7 @@ export const ImageAnnotationCanvas = forwardRef<
     [],
   );
 
-  // Expose addEmoji via window event or ref if needed
+  // Expose addEmoji via window event
   useEffect(() => {
     const handler = (e: CustomEvent<string>) => {
       addEmoji(e.detail);
@@ -167,59 +185,156 @@ export const ImageAnnotationCanvas = forwardRef<
     };
   }, [addEmoji]);
 
-  // Drawing event handlers
+  /**
+   * Translates pointer event coordinates into normalized [0-1] coordinates relative to
+   * the unrotated image, using an inverse rotation transform.
+   */
+  const getNormalizedPoint = (
+    e: ReactPointerEvent<HTMLCanvasElement>,
+    canvas: HTMLCanvasElement,
+  ): Point => {
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    let dx = e.clientX - cx;
+    let dy = e.clientY - cy;
+
+    // Invert the CSS visual rotation angle so pointer tracks unrotated image coordinates
+    if (rotation % 360 !== 0) {
+      const rad = (-rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const rx = dx * cos - dy * sin;
+      const ry = dx * sin + dy * cos;
+      dx = rx;
+      dy = ry;
+    }
+
+    const localX = dx + stageSize.width / 2;
+    const localY = dy + stageSize.height / 2;
+
+    const nx = Math.max(0, Math.min(1, localX / stageSize.width));
+    const ny = Math.max(0, Math.min(1, localY / stageSize.height));
+
+    return { x: nx, y: ny };
+  };
+
+  // Direct 2D Canvas Drawing (Lightweight, 120 FPS, No React State Lag)
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (!canvas || stageSize.width === 0 || stageSize.height === 0) return;
+
+    const pt = getNormalizedPoint(e, canvas);
+    const px = pt.x * stageSize.width;
+    const py = pt.y * stageSize.height;
 
     if (activeTool === "pen" || activeTool === "highlighter") {
-      const stroke: DrawStroke = {
-        id: `stroke-${Date.now()}`,
-        type: "stroke",
-        tool: activeTool,
+      const toolType = activeTool === "highlighter" ? "highlighter" : "pen";
+      activeStrokeRef.current = {
+        tool: toolType,
         color: activeColor,
-        width: activeTool === "highlighter" ? 20 : 4,
-        points: [{ x, y }],
+        points: [pt],
       };
-      setCurrentStroke(stroke);
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      lastPointRef.current = { x: px, y: py };
+      lastMidPointRef.current = { x: px, y: py };
+
+      // Draw initial touch dot
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = activeColor;
+        ctx.fillStyle = activeColor;
+        const strokeWidth =
+          toolType === "highlighter"
+            ? Math.max(18, stageSize.width * 0.024)
+            : Math.max(3, stageSize.width * 0.0045);
+        ctx.lineWidth = strokeWidth;
+        ctx.globalAlpha = toolType === "highlighter" ? 0.35 : 1.0;
+        ctx.beginPath();
+        ctx.arc(px, py, strokeWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      try {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } catch (_err) {
+        // ignore
+      }
     } else if (activeTool === "text") {
-      // Place text input at pointer location
-      const pctX = (x / canvas.width) * 100;
-      const pctY = (y / canvas.height) * 100;
-      setEditingTextPos({ x: pctX, y: pctY });
+      setEditingTextPos({ x: pt.x * 100, y: pt.y * 100 });
       setActiveTextId(null);
       setTextInputVal("");
     }
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!currentStroke) return;
+    if (!activeStrokeRef.current || !lastPointRef.current || !lastMidPointRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
 
-    setCurrentStroke((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        points: [...prev.points, { x, y }],
+    const pt = getNormalizedPoint(e, canvas);
+    const px = pt.x * stageSize.width;
+    const py = pt.y * stageSize.height;
+
+    activeStrokeRef.current.points.push(pt);
+
+    // Direct incremental render using midpoint quadratic curve smoothing
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      const toolType = activeStrokeRef.current.tool;
+      const strokeWidth =
+        toolType === "highlighter"
+          ? Math.max(18, stageSize.width * 0.024)
+          : Math.max(3, stageSize.width * 0.0045);
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = activeStrokeRef.current.color;
+      ctx.lineWidth = strokeWidth;
+      ctx.globalAlpha = toolType === "highlighter" ? 0.35 : 1.0;
+
+      const mid = {
+        x: (lastPointRef.current.x + px) / 2,
+        y: (lastPointRef.current.y + py) / 2,
       };
-    });
+
+      ctx.beginPath();
+      ctx.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
+      ctx.quadraticCurveTo(lastPointRef.current.x, lastPointRef.current.y, mid.x, mid.y);
+      ctx.stroke();
+      ctx.restore();
+
+      lastPointRef.current = { x: px, y: py };
+      lastMidPointRef.current = mid;
+    }
   };
 
   const handlePointerUp = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (currentStroke) {
-      setAnnotations((prev) => [...prev, currentStroke]);
-      setCurrentStroke(null);
+    if (activeStrokeRef.current && activeStrokeRef.current.points.length > 0) {
+      const finishedStroke: DrawStroke = {
+        id: `stroke-${Date.now()}`,
+        type: "stroke",
+        tool: activeStrokeRef.current.tool,
+        color: activeStrokeRef.current.color,
+        width: activeStrokeRef.current.tool === "highlighter" ? 20 : 4,
+        points: activeStrokeRef.current.points,
+      };
+
+      setAnnotations((prev) => [...prev, finishedStroke]);
+      activeStrokeRef.current = null;
+      lastPointRef.current = null;
+      lastMidPointRef.current = null;
+
       try {
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch (_e) {
+      } catch (_err) {
         // ignore
       }
     }
@@ -257,38 +372,30 @@ export const ImageAnnotationCanvas = forwardRef<
   return (
     <div
       ref={containerRef}
-      className="relative flex items-center justify-center max-h-[58vh] max-w-full select-none overflow-hidden transition-transform duration-200"
+      className="relative inline-block select-none max-h-[58vh] max-w-full transition-transform duration-200"
       style={{
         transform: `rotate(${rotation}deg)`,
       }}
     >
-      {/* Base Image */}
+      {/* Base Image - Shrink-wraps container exactly to rendered pixels */}
       <img
         ref={imageRef}
         src={imageSrc}
         alt="Preview"
         draggable={false}
-        onLoad={updateCanvasDimensions}
-        className="max-h-[58vh] max-w-full rounded-lg object-contain shadow-2xl shadow-black/40 pointer-events-none"
+        onLoad={updateStageDimensions}
+        className="block max-h-[58vh] max-w-full rounded-lg object-contain shadow-2xl shadow-black/40 pointer-events-none"
       />
 
-      {/* Interactive Overlay Canvas */}
-      {canvasSize.width > 0 && canvasSize.height > 0 && (
+      {/* Interactive Overlay Canvas - Perfectly aligned 1:1 with base image */}
+      {stageSize.width > 0 && stageSize.height > 0 && (
         <canvas
           ref={canvasRef}
-          width={canvasSize.width}
-          height={canvasSize.height}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className={`absolute inset-0 z-10 size-full touch-none ${
-            activeTool === "pen" || activeTool === "highlighter"
-              ? "cursor-crosshair"
-              : activeTool === "text"
-              ? "cursor-text"
-              : "cursor-default pointer-events-none"
-          }`}
+          width={stageSize.width * dpr}
+          height={stageSize.height * dpr}
           style={{
+            width: `${stageSize.width}px`,
+            height: `${stageSize.height}px`,
             pointerEvents:
               activeTool === "pen" ||
               activeTool === "highlighter" ||
@@ -296,6 +403,17 @@ export const ImageAnnotationCanvas = forwardRef<
                 ? "auto"
                 : "none",
           }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className={`absolute inset-0 z-10 touch-none ${
+            activeTool === "pen" || activeTool === "highlighter"
+              ? "cursor-crosshair"
+              : activeTool === "text"
+              ? "cursor-text"
+              : "cursor-default"
+          }`}
         />
       )}
 
@@ -333,4 +451,3 @@ export const ImageAnnotationCanvas = forwardRef<
     </div>
   );
 });
-

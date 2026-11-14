@@ -1,11 +1,13 @@
 import type { AnnotationItem, DrawStroke, EmojiAnnotation, TextAnnotation } from "./types";
 
 /**
- * Draws a smooth stroke onto a 2D canvas context.
+ * Draws a smooth stroke onto a 2D canvas context using midpoint quadratic bezier curves.
  */
 export function renderStroke(
   ctx: CanvasRenderingContext2D,
   stroke: DrawStroke,
+  canvasWidth: number = 0,
+  canvasHeight: number = 0,
   scale: number = 1,
 ) {
   if (stroke.points.length === 0) return;
@@ -14,27 +16,60 @@ export function renderStroke(
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = stroke.color;
-  ctx.lineWidth = stroke.width * scale;
 
-  if (stroke.tool === "highlighter") {
-    ctx.globalAlpha = 0.45;
-  } else {
-    ctx.globalAlpha = 1.0;
+  const isHighlighter = stroke.tool === "highlighter";
+  const strokeWidth =
+    canvasWidth > 0
+      ? isHighlighter
+        ? Math.max(18 * scale, canvasWidth * 0.024)
+        : Math.max(3 * scale, canvasWidth * 0.0045)
+      : stroke.width * scale;
+
+  ctx.lineWidth = strokeWidth;
+  ctx.globalAlpha = isHighlighter ? 0.35 : 1.0;
+
+  const getPx = (pt: { x: number; y: number }) => {
+    // If point is normalized [0-1] and dimensions provided, scale by dimensions
+    if (canvasWidth > 0 && canvasHeight > 0 && pt.x <= 1 && pt.y <= 1) {
+      return { x: pt.x * canvasWidth, y: pt.y * canvasHeight };
+    }
+    // Fallback for raw pixel coordinates
+    return { x: pt.x * scale, y: pt.y * scale };
+  };
+
+  const first = getPx(stroke.points[0]);
+
+  if (stroke.points.length === 1) {
+    ctx.beginPath();
+    ctx.arc(first.x, first.y, strokeWidth / 2, 0, Math.PI * 2);
+    ctx.fillStyle = stroke.color;
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (stroke.points.length === 2) {
+    const second = getPx(stroke.points[1]);
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    ctx.lineTo(second.x, second.y);
+    ctx.stroke();
+    ctx.restore();
+    return;
   }
 
   ctx.beginPath();
-  const first = stroke.points[0];
-  ctx.moveTo(first.x * scale, first.y * scale);
+  ctx.moveTo(first.x, first.y);
 
-  if (stroke.points.length === 1) {
-    ctx.lineTo(first.x * scale, first.y * scale);
-  } else {
-    for (let i = 1; i < stroke.points.length; i++) {
-      const pt = stroke.points[i];
-      ctx.lineTo(pt.x * scale, pt.y * scale);
-    }
+  for (let i = 1; i < stroke.points.length - 1; i++) {
+    const curr = getPx(stroke.points[i]);
+    const next = getPx(stroke.points[i + 1]);
+    const mid = { x: (curr.x + next.x) / 2, y: (curr.y + next.y) / 2 };
+    ctx.quadraticCurveTo(curr.x, curr.y, mid.x, mid.y);
   }
 
+  const last = getPx(stroke.points[stroke.points.length - 1]);
+  ctx.lineTo(last.x, last.y);
   ctx.stroke();
   ctx.restore();
 }
@@ -47,20 +82,22 @@ export function renderText(
   text: TextAnnotation,
   canvasWidth: number,
   canvasHeight: number,
+  scale: number = 1,
 ) {
   if (!text.text.trim()) return;
 
   ctx.save();
   const px = (text.x / 100) * canvasWidth;
   const py = (text.y / 100) * canvasHeight;
+  const scaledFontSize = Math.round(text.fontSize * scale);
 
-  ctx.font = `bold ${text.fontSize}px sans-serif`;
+  ctx.font = `bold ${scaledFontSize}px sans-serif`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
 
   // Text outline for legibility on any background
   ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
-  ctx.lineWidth = 4;
+  ctx.lineWidth = Math.max(2, Math.round(4 * scale));
   ctx.strokeText(text.text, px, py);
 
   ctx.fillStyle = text.color;
@@ -76,12 +113,14 @@ export function renderEmoji(
   emoji: EmojiAnnotation,
   canvasWidth: number,
   canvasHeight: number,
+  scale: number = 1,
 ) {
   ctx.save();
   const px = (emoji.x / 100) * canvasWidth;
   const py = (emoji.y / 100) * canvasHeight;
+  const scaledSize = Math.round(emoji.size * scale);
 
-  ctx.font = `${emoji.size}px sans-serif`;
+  ctx.font = `${scaledSize}px sans-serif`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
   ctx.fillText(emoji.emoji, px, py);
@@ -100,11 +139,11 @@ export function renderAllAnnotations(
 ) {
   for (const item of items) {
     if (item.type === "stroke") {
-      renderStroke(ctx, item, scale);
+      renderStroke(ctx, item, canvasWidth, canvasHeight, scale);
     } else if (item.type === "text") {
-      renderText(ctx, item, canvasWidth, canvasHeight);
+      renderText(ctx, item, canvasWidth, canvasHeight, scale);
     } else if (item.type === "emoji") {
-      renderEmoji(ctx, item, canvasWidth, canvasHeight);
+      renderEmoji(ctx, item, canvasWidth, canvasHeight, scale);
     }
   }
 }
@@ -166,10 +205,12 @@ export async function compositeAndExportFile(
   const drawW = isRotatedQuarter ? targetHeight : targetWidth;
   const drawH = isRotatedQuarter ? targetWidth : targetHeight;
   ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-  ctx.restore();
 
-  // Render annotations over the rotated canvas
-  renderAllAnnotations(ctx, annotations, targetWidth, targetHeight, 1);
+  // Render annotations over the image in its local coordinate space
+  ctx.translate(-drawW / 2, -drawH / 2);
+  const exportScale = Math.max(1, drawW / 700);
+  renderAllAnnotations(ctx, annotations, drawW, drawH, exportScale);
+  ctx.restore();
 
   // Export to Blob & File
   const outputMime = originalFile.type === "image/png" ? "image/png" : "image/jpeg";
