@@ -225,6 +225,7 @@ export function sendChannelMessage(
     messageType?: string;
     mediaUrl?: string;
     replyToMessageId?: string;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<{ messageId: string; intentStatus: string }> {
   return fetchApi(

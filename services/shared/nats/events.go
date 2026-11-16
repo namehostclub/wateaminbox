@@ -196,6 +196,7 @@ type MessagePayload struct {
 	Caption           string               `json:"caption,omitempty"`
 	FileName          string               `json:"fileName,omitempty"`
 	ContactCards      []ContactCardPayload `json:"contactCards,omitempty"`
+	LinkPreview       *LinkPreviewPayload  `json:"linkPreview,omitempty"`
 	MediaType         string               `json:"mediaType,omitempty"`
 	MediaSize         int64                `json:"mediaSize,omitempty"`
 	MediaAlbumID      string               `json:"mediaAlbumId,omitempty"`
@@ -529,6 +530,16 @@ type GroupMention struct {
 	Subject string `json:"subject"`
 }
 
+// LinkPreviewPayload represents rich URL metadata in an extended text message.
+type LinkPreviewPayload struct {
+	URL         string `json:"url"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	ImageURL    string `json:"image_url,omitempty"`
+	SiteName    string `json:"site_name,omitempty"`
+	Domain      string `json:"domain,omitempty"`
+}
+
 // MessageEvent represents an incoming WhatsApp message (internal use).
 type MessageEvent struct {
 	MessageID         string               `json:"message_id"`
@@ -546,6 +557,7 @@ type MessageEvent struct {
 	MediaAlbumCount   int                  `json:"media_album_count,omitempty"`
 	FileName          string               `json:"file_name,omitempty"`
 	ContactCards      []ContactCardPayload `json:"contact_cards,omitempty"`
+	LinkPreview       *LinkPreviewPayload  `json:"link_preview,omitempty"`
 	Caption           string               `json:"caption,omitempty"`
 	IsGroup           bool                 `json:"is_group"`
 	GroupID           string               `json:"group_id,omitempty"`

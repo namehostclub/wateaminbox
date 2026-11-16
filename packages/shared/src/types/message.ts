@@ -139,6 +139,17 @@ export interface ScheduledMessage {
 export type MediaDownloadStatus =
   "pending" | "downloading" | "completed" | "failed" | null;
 
+/** Rich metadata extracted from OpenGraph/Twitter/HTML meta tags for URL previews. */
+export interface LinkPreviewMetadata {
+  url: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  siteName?: string;
+  domain: string;
+  mediaType?: string;
+}
+
 export interface MessageMetadata {
   /**
    * A provider event rather than someone's message - a group membership
@@ -181,6 +192,8 @@ export interface MessageMetadata {
       label?: string;
     }>;
   }>;
+  /** Rich link preview metadata fetched for URLs in the message. */
+  linkPreview?: LinkPreviewMetadata;
   // Deferred media download fields
   mediaPending?: boolean; // True if media needs to be downloaded on-demand
   mediaDownloadStatus?: MediaDownloadStatus;

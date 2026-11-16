@@ -30,14 +30,20 @@ export function createOptimisticMessage(
     sentByUserGravatarUrl: sender?.gravatarUrl,
     messageType: input.messageType || "text",
     content: input.content,
-    metadata: input.mediaUrl
-      ? {
-          mediaUrl: input.mediaUrl,
-          mediaAlbumId: input.mediaAlbum?.id,
-          mediaAlbumIndex: input.mediaAlbum?.index,
-          mediaAlbumCount: input.mediaAlbum?.count,
-        }
-      : undefined,
+    metadata:
+      input.mediaUrl || input.linkPreview
+        ? {
+            ...(input.mediaUrl
+              ? {
+                  mediaUrl: input.mediaUrl,
+                  mediaAlbumId: input.mediaAlbum?.id,
+                  mediaAlbumIndex: input.mediaAlbum?.index,
+                  mediaAlbumCount: input.mediaAlbum?.count,
+                }
+              : {}),
+            ...(input.linkPreview ? { linkPreview: input.linkPreview } : {}),
+          }
+        : undefined,
     replyToMessageId: input.replyToMessageId,
     isStarred: false,
     isDeleted: false,

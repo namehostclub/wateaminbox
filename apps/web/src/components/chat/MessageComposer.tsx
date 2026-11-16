@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import { useFirstChatAcknowledgment } from "./FirstChatAcknowledgment";
 import { getCompanyId } from "@/lib/api/client";
-import type { Message, WhatsAppConnectionIdentity } from "@wateaminbox/shared";
+import type {
+  LinkPreviewMetadata,
+  Message,
+  WhatsAppConnectionIdentity,
+} from "@wateaminbox/shared";
 import { dayjs } from "@wateaminbox/shared";
 import {
   CalendarClock,
@@ -39,7 +43,9 @@ import type { GroupParticipant } from "../../hooks/useGroups";
 import { useQuickReplySuggestions } from "../../hooks/useQuickReplies";
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { uploadMedia } from "../../lib/api";
+import { fetchLinkPreview } from "@/lib/api/link-preview";
 import { AttachmentPreviewDialog } from "./AttachmentPreviewDialog";
+import { LinkPreviewCard } from "./LinkPreviewCard";
 import { VoiceRecorderBar } from "./VoiceRecorderBar";
 import { ChatSwitcher } from "./ChatSwitcher";
 import { ChannelRoute, ConnectionRoute } from "./ConnectionIdentity";
@@ -146,6 +152,7 @@ interface MessageComposerProps {
     content: string,
     replyToMessageId?: string,
     mentionedJids?: string[],
+    linkPreview?: LinkPreviewMetadata,
   ) => void;
   onAttachFile: (
     files: File[],
@@ -230,6 +237,16 @@ function AcknowledgedMessageComposer({
   const [pendingAttachments, setPendingAttachments] = useState<
     PendingAttachment[]
   >([]);
+  const [linkPreview, setLinkPreview] = useState<LinkPreviewMetadata | null>(
+    null,
+  );
+  const [isLoadingLinkPreview, setIsLoadingLinkPreview] = useState(false);
+  const [currentDetectedUrl, setCurrentDetectedUrl] = useState<string | null>(
+    null,
+  );
+  const [dismissedUrls, setDismissedUrls] = useState<Set<string>>(
+    () => new Set(),
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const schedulePopoverRef = useRef<HTMLDivElement>(null);
@@ -609,6 +626,58 @@ function AcknowledgedMessageComposer({
     });
   };
 
+  const URL_REGEX = /https?:\/\/[^\s/$.?#].[^\s]*/i;
+
+  useEffect(() => {
+    const match = message.match(URL_REGEX);
+    const rawMatch = match ? match[0] : null;
+    const detectedUrl = rawMatch ? rawMatch.replace(/[.,!?)]+$/, "") : null;
+
+    setCurrentDetectedUrl(detectedUrl);
+
+    if (!detectedUrl) {
+      if (linkPreview) setLinkPreview(null);
+      if (isLoadingLinkPreview) setIsLoadingLinkPreview(false);
+      return;
+    }
+
+    if (dismissedUrls.has(detectedUrl)) {
+      if (linkPreview) setLinkPreview(null);
+      if (isLoadingLinkPreview) setIsLoadingLinkPreview(false);
+      return;
+    }
+
+    if (linkPreview && linkPreview.url === detectedUrl) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingLinkPreview(true);
+      try {
+        const preview = await fetchLinkPreview(detectedUrl);
+        if (preview && !dismissedUrls.has(detectedUrl)) {
+          setLinkPreview(preview);
+        } else {
+          setLinkPreview(null);
+        }
+      } catch {
+        setLinkPreview(null);
+      } finally {
+        setIsLoadingLinkPreview(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [message, dismissedUrls]);
+
+  const handleDismissLinkPreview = useCallback(() => {
+    if (currentDetectedUrl) {
+      setDismissedUrls((prev) => new Set(prev).add(currentDetectedUrl));
+    }
+    setLinkPreview(null);
+    setIsLoadingLinkPreview(false);
+  }, [currentDetectedUrl]);
+
   const handleSend = async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage || isInputDisabled || !conversationId) return;
@@ -626,7 +695,10 @@ function AcknowledgedMessageComposer({
       mentionPayload.content,
       replyToMessage?.id,
       mentionPayload.mentionedJids,
+      linkPreview ?? undefined,
     );
+    setLinkPreview(null);
+    setDismissedUrls(new Set());
     setMessage("");
     setCaretPosition(0);
     setIsQuickReplyPickerDismissed(false);
@@ -988,6 +1060,23 @@ function AcknowledgedMessageComposer({
                 <X className="size-4.5" aria-hidden="true" />
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Rich Link Preview Floating Card (WhatsApp style) */}
+        {(linkPreview || isLoadingLinkPreview) && (
+          <div className="px-3 pt-2">
+            <LinkPreviewCard
+              preview={
+                linkPreview ?? {
+                  url: currentDetectedUrl || "",
+                  domain: currentDetectedUrl || "",
+                }
+              }
+              variant="composer"
+              isLoading={isLoadingLinkPreview}
+              onDismiss={handleDismissLinkPreview}
+            />
           </div>
         )}
 

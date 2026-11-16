@@ -3,7 +3,7 @@
  * Connection management and operations for NATS/JetStream
  */
 
-import { nowMs } from "@wateaminbox/shared";
+import { type LinkPreviewMetadata, nowMs } from "@wateaminbox/shared";
 import {
   type ConsumerOptsBuilder,
   consumerOpts,
@@ -231,6 +231,7 @@ export async function buildSendMessageCommand(
     imageCount: number;
     videoCount: number;
   },
+  linkPreview?: LinkPreviewMetadata,
 ): Promise<Record<string, unknown>> {
   let caption: string | undefined;
   let mediaReference:
@@ -286,6 +287,9 @@ export async function buildSendMessageCommand(
     media_album_count: mediaAlbum?.count,
     media_album_image_count: mediaAlbum?.imageCount,
     media_album_video_count: mediaAlbum?.videoCount,
+    link_preview_title: linkPreview?.title,
+    link_preview_description: linkPreview?.description,
+    link_preview_url: linkPreview?.url,
     correlation_id: correlationId,
   };
 

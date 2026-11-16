@@ -19,6 +19,7 @@ import { feedbackRoutes } from "./feedback.js";
 import { groupRoutes } from "./groups/index.js";
 import { healthRoutes } from "./health.js";
 import { labelRoutes } from "./labels.js";
+import { linkPreviewRoutes } from "./link-preview.js";
 import { mcpRoutes } from "./mcp/index.js";
 import { mediaRoutes } from "./media.js";
 import { messageRoutes } from "./messages/index.js";
@@ -111,6 +112,9 @@ routes.route("/catalogs", catalogRoutes);
 
 // Media upload routes
 routes.route("/media", mediaRoutes);
+
+// Rich link preview route
+routes.route("/link-preview", linkPreviewRoutes);
 
 // Debug routes (development only)
 routes.route("/debug", debugRoutes);

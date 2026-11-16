@@ -538,6 +538,10 @@ func (c *Client) RegisterEventHandler(handler func(interface{})) {
 }
 
 func buildTextMessage(jid string, text string, replyTo string, replyToSender string, mentionedJIDs []string) (*waE2E.Message, error) {
+	return buildTextMessageWithPreview(jid, text, replyTo, replyToSender, mentionedJIDs, "", "", "")
+}
+
+func buildTextMessageWithPreview(jid string, text string, replyTo string, replyToSender string, mentionedJIDs []string, title string, desc string, previewUrl string) (*waE2E.Message, error) {
 	contextInfo := &waE2E.ContextInfo{}
 	for _, rawJID := range mentionedJIDs {
 		mentionedJID, err := waTypes.ParseJID(rawJID)
@@ -561,14 +565,24 @@ func buildTextMessage(jid string, text string, replyTo string, replyToSender str
 		contextInfo.Participant = proto.String(participant)
 	}
 
-	if replyTo == "" && len(contextInfo.MentionedJID) == 0 {
+	if replyTo == "" && len(contextInfo.MentionedJID) == 0 && previewUrl == "" {
 		return &waE2E.Message{Conversation: proto.String(text)}, nil
 	}
+	extMsg := &waE2E.ExtendedTextMessage{
+		Text:        proto.String(text),
+		ContextInfo: contextInfo,
+	}
+	if previewUrl != "" {
+		extMsg.MatchedText = proto.String(previewUrl)
+		if title != "" {
+			extMsg.Title = proto.String(title)
+		}
+		if desc != "" {
+			extMsg.Description = proto.String(desc)
+		}
+	}
 	return &waE2E.Message{
-		ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-			Text:        proto.String(text),
-			ContextInfo: contextInfo,
-		},
+		ExtendedTextMessage: extMsg,
 	}, nil
 }
 
@@ -697,6 +711,52 @@ func (c *Client) SendMessage(ctx context.Context, jid string, text string, reply
 	}
 
 	log.Printf("Message sent: ID=%s, ServerTimestamp=%v", resp.ID, resp.Timestamp)
+	return types.SendResponse{
+		ID:        string(resp.ID),
+		Timestamp: resp.Timestamp,
+	}, nil
+}
+
+// SendMessageWithPreview sends a text message with rich URL link preview metadata.
+func (c *Client) SendMessageWithPreview(ctx context.Context, jid string, text string, replyTo string, replyToSender string, mentionedJIDs []string, title string, desc string, previewUrl string) (types.SendResponse, error) {
+	recipient, err := waTypes.ParseJID(jid)
+	if err != nil {
+		return types.SendResponse{}, fmt.Errorf("invalid JID %s: %w", jid, err)
+	}
+
+	text, mentionedJIDs, err = prepareTextMentions(
+		ctx,
+		text,
+		mentionedJIDs,
+		func(ctx context.Context, lid waTypes.JID) (waTypes.JID, error) {
+			if c.client == nil || c.client.Store == nil || c.client.Store.LIDs == nil {
+				return waTypes.EmptyJID, errors.New("LID mapping store is unavailable")
+			}
+			return c.client.Store.LIDs.GetPNForLID(ctx, lid)
+		},
+	)
+	if err != nil {
+		return types.SendResponse{}, err
+	}
+
+	msg, err := buildTextMessageWithPreview(jid, text, replyTo, replyToSender, mentionedJIDs, title, desc, previewUrl)
+	if err != nil {
+		return types.SendResponse{}, err
+	}
+	if replyTo != "" {
+		participant := replyToSender
+		if participant == "" {
+			participant = jid
+		}
+		log.Printf("Sending reply message with link preview: stanzaId=%s, participant=%s", replyTo, participant)
+	}
+
+	resp, err := c.sendCommandMessage(ctx, recipient, msg)
+	if err != nil {
+		return types.SendResponse{}, fmt.Errorf("failed to send message with preview: %w", err)
+	}
+
+	log.Printf("Message with preview sent: ID=%s, ServerTimestamp=%v", resp.ID, resp.Timestamp)
 	return types.SendResponse{
 		ID:        string(resp.ID),
 		Timestamp: resp.Timestamp,

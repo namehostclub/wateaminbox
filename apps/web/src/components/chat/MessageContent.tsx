@@ -8,6 +8,7 @@ import { useMessageActions } from "@/contexts/message-actions-context";
 import type { GroupParticipant } from "@/hooks/useGroups";
 import { cn, formatPhoneNumber } from "@/lib/utils";
 import { LinkifiedText } from "./LinkifiedText";
+import { LinkPreviewCard } from "./LinkPreviewCard";
 import { MediaAlbumContent } from "./MediaAlbumContent";
 import { MediaLightbox } from "./MediaLightbox";
 import { MediaPendingPlaceholder } from "./MediaPendingPlaceholder";
@@ -79,12 +80,23 @@ export function MessageContent({
 
   const contentRenderer: Record<MessageType, () => React.ReactNode> = {
     text: () => (
-      <LinkifiedText
-        text={message.content}
-        isOwn={isOwn}
-        mentionParticipants={mentionParticipants}
-        groupMentions={message.metadata?.groupMentions}
-      />
+      <div className="space-y-1.5">
+        {message.metadata?.linkPreview && (
+          <div className="mb-1 max-w-sm">
+            <LinkPreviewCard
+              preview={message.metadata.linkPreview}
+              variant="bubble"
+              isOwn={isOwn}
+            />
+          </div>
+        )}
+        <LinkifiedText
+          text={message.content}
+          isOwn={isOwn}
+          mentionParticipants={mentionParticipants}
+          groupMentions={message.metadata?.groupMentions}
+        />
+      </div>
     ),
     image: () => {
       // Show placeholder if media is pending download

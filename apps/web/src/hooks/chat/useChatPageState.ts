@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Contact, Message } from "@wateaminbox/shared";
+import type { Contact, LinkPreviewMetadata, Message } from "@wateaminbox/shared";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -106,6 +106,7 @@ export interface ChatPageActions {
     content: string,
     replyToMessageId?: string,
     mentionedJids?: string[],
+    linkPreview?: LinkPreviewMetadata,
   ) => void;
   handleAttachFile: (
     files: File[],
@@ -396,7 +397,12 @@ export function useChatPageState(): ChatPageState & ChatPageActions {
 
   // Send message handler
   const handleSendMessage = React.useCallback(
-    (content: string, replyToMessageId?: string, mentionedJids?: string[]) => {
+    (
+      content: string,
+      replyToMessageId?: string,
+      mentionedJids?: string[],
+      linkPreview?: LinkPreviewMetadata,
+    ) => {
       if (!selectedChatId) return;
       if (isContactBlocked) {
         toast.error(blockedSendMessage);
@@ -409,6 +415,7 @@ export function useChatPageState(): ChatPageState & ChatPageActions {
         messageType: "text",
         replyToMessageId,
         mentionedJids,
+        linkPreview,
       });
       setReplyDraft(null);
     },

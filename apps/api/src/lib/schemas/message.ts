@@ -15,6 +15,21 @@ import {
 // =============================================================================
 
 /**
+ * Schema for rich link preview metadata
+ */
+export const linkPreviewSchema = z.object({
+  url: z.string().url(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  siteName: z.string().optional(),
+  domain: z.string(),
+  mediaType: z.string().optional(),
+});
+
+export type LinkPreviewInput = z.infer<typeof linkPreviewSchema>;
+
+/**
  * Schema for sending a new message
  */
 export const sendMessageSchema = z.object({
@@ -22,6 +37,7 @@ export const sendMessageSchema = z.object({
   content: z.string().optional(),
   messageType: messageTypeSchema.default("text"),
   mediaUrl: urlStringSchema.optional(),
+  linkPreview: linkPreviewSchema.optional(),
   mediaAlbum: z
     .object({
       id: z.string().regex(/^3EB0[0-9A-F]{18}$/),

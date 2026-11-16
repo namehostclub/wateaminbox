@@ -292,12 +292,16 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
             ...(payload.callEvent ? { callEvent: payload.callEvent } : {}),
           }
         : null;
+    const linkPreviewMetadata = payload.linkPreview
+      ? { linkPreview: payload.linkPreview }
+      : null;
     const incomingMetadata =
-      albumMetadata || documentMetadata || callMetadata
+      albumMetadata || documentMetadata || callMetadata || linkPreviewMetadata
         ? {
             ...(albumMetadata ?? {}),
             ...(documentMetadata ?? {}),
             ...(callMetadata ?? {}),
+            ...(linkPreviewMetadata ?? {}),
           }
         : null;
 

@@ -415,6 +415,7 @@ func (p *Publisher) PublishMessage(msg MessageEvent) error {
 			Caption:            msg.Caption,
 			FileName:           msg.FileName,
 			ContactCards:       msg.ContactCards,
+			LinkPreview:        msg.LinkPreview,
 			MediaType:          msg.MediaType,
 			MediaSize:          msg.MediaSize,
 			MediaAlbumID:       msg.MediaAlbumID,

@@ -175,6 +175,12 @@ async function sendChannelContactMessage(
   }
   const senderProfile = await toAuthUserResponse(user);
   const createdAt = toDbDate();
+  const messageMetadata: Record<string, unknown> = {};
+  if (body.linkPreview) {
+    messageMetadata.linkPreview = body.linkPreview;
+  }
+  const hasMetadata = Object.keys(messageMetadata).length > 0;
+
   return c.json({
     success: true,
     message: {
@@ -189,6 +195,7 @@ async function sendChannelContactMessage(
       sentByUserGravatarUrl: senderProfile.gravatarUrl,
       messageType: body.messageType,
       content: body.content || "",
+      metadata: hasMetadata ? messageMetadata : undefined,
       status: "pending",
       createdAt,
       updatedAt: createdAt,
@@ -357,6 +364,7 @@ sendRoutes.post(
       quotedSenderJid,
       mentionValidation.mentionedJids,
       body.mediaAlbum,
+      body.linkPreview,
     );
 
     const storedMediaReference = body.mediaUrl
@@ -366,6 +374,21 @@ sendRoutes.post(
       : null;
     const spineAuthority = await getChannelSpineWorkspaceAuthority(companyId);
     let autoAssigned = false;
+
+    const messageMetadata: Record<string, unknown> = {};
+    if (body.linkPreview) {
+      messageMetadata.linkPreview = body.linkPreview;
+    }
+    if (body.mediaUrl) {
+      messageMetadata.mediaUrl = body.mediaUrl;
+      if (body.mediaAlbum?.id) messageMetadata.mediaAlbumId = body.mediaAlbum.id;
+      if (body.mediaAlbum?.index !== undefined)
+        messageMetadata.mediaAlbumIndex = body.mediaAlbum.index;
+      if (body.mediaAlbum?.count !== undefined)
+        messageMetadata.mediaAlbumCount = body.mediaAlbum.count;
+    }
+    const hasMetadata = Object.keys(messageMetadata).length > 0;
+
     await tenantDb.transaction().execute(async (trx) => {
       await reserveMediaReferences(trx, companyId, [storedMediaReference]);
       const result = await requireSendAccess(trx, contact.id, user.id);
@@ -386,6 +409,7 @@ sendRoutes.post(
           quoted_message_id: quotedWaMessageId || null,
           sent_by_user_id: user.id,
           status: "pending",
+          metadata: hasMetadata ? messageMetadata : null,
           timestamp: createdAt,
           created_at: createdAt,
           case_id: result.caseId,
@@ -424,12 +448,10 @@ sendRoutes.post(
       sentByUserGravatarUrl: senderProfile.gravatarUrl,
       messageType: body.messageType,
       content: body.content || "",
-      metadata: body.mediaUrl
+      metadata: hasMetadata
         ? {
-            mediaUrl: body.mediaUrl,
-            mediaAlbumId: body.mediaAlbum?.id,
-            mediaAlbumIndex: body.mediaAlbum?.index,
-            mediaAlbumCount: body.mediaAlbum?.count,
+            ...messageMetadata,
+            ...(body.mediaUrl ? { mediaUrl: body.mediaUrl } : {}),
           }
         : undefined,
       replyToMessageId: body.replyToMessageId || undefined,
@@ -444,12 +466,10 @@ sendRoutes.post(
       {
         message: {
           ...formattedMessage,
-          metadata: body.mediaUrl
+          metadata: hasMetadata
             ? {
-                mediaAvailable: true,
-                mediaAlbumId: body.mediaAlbum?.id,
-                mediaAlbumIndex: body.mediaAlbum?.index,
-                mediaAlbumCount: body.mediaAlbum?.count,
+                ...messageMetadata,
+                ...(body.mediaUrl ? { mediaAvailable: true } : {}),
               }
             : undefined,
         },

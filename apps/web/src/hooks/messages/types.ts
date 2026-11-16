@@ -1,10 +1,15 @@
-import type { Message, RemoteHistoryStatus } from "@wateaminbox/shared";
+import type {
+  LinkPreviewMetadata,
+  Message,
+  RemoteHistoryStatus,
+} from "@wateaminbox/shared";
 
 export interface SendMessageInput {
   contactId: string;
   content: string;
   messageType?: "text" | "image" | "video" | "audio" | "document";
   mediaUrl?: string;
+  linkPreview?: LinkPreviewMetadata;
   mediaAlbum?: {
     id: string;
     index: number;

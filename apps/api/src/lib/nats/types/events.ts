@@ -124,6 +124,14 @@ export interface MessageEvent extends WhatsAppEvent {
       displayName: string;
       vcard: string;
     }>;
+    linkPreview?: {
+      url: string;
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+      siteName?: string;
+      domain?: string;
+    };
     mediaType?: string;
     mediaSize?: number;
     mediaAlbumId?: string;

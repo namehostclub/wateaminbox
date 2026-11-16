@@ -1,4 +1,7 @@
-import type { WhatsAppConnectionIdentity } from "@wateaminbox/shared";
+import type {
+  LinkPreviewMetadata,
+  WhatsAppConnectionIdentity,
+} from "@wateaminbox/shared";
 import {
   ArrowLeft,
   ArrowRight,
@@ -192,17 +195,23 @@ export function ChatPage() {
     isLoading: areChannelCapabilitiesLoading,
   } = useChannelAccountCapabilities(channelConversation?.channelAccountId);
   const handleChannelSendMessage = useCallback(
-    (content: string, replyToMessageId?: string, mentionedJids?: string[]) => {
+    (
+      content: string,
+      replyToMessageId?: string,
+      mentionedJids?: string[],
+      linkPreview?: LinkPreviewMetadata,
+    ) => {
       if (channelConversation) {
         void sendChannelMessage(channelConversation.id, {
           content,
           messageType: "text",
           replyToMessageId,
+          metadata: linkPreview ? { linkPreview } : undefined,
         });
         handleClearReply();
         return;
       }
-      handleSendMessage(content, replyToMessageId, mentionedJids);
+      handleSendMessage(content, replyToMessageId, mentionedJids, linkPreview);
     },
     [channelConversation, handleClearReply, handleSendMessage],
   );

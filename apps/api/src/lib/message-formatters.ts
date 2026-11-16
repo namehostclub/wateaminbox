@@ -5,6 +5,7 @@
  * These functions ensure consistent message formatting across different routes.
  */
 
+import type { LinkPreviewMetadata } from "@wateaminbox/shared";
 import {
   legacyProvenance,
   type ThreadProvenance,
@@ -120,6 +121,7 @@ export interface MessageMetadata {
   mediaAlbumIndex?: number;
   mediaAlbumCount?: number;
   contactCards?: ContactCardData[];
+  linkPreview?: LinkPreviewMetadata;
 }
 
 function optionalAlbumString(
@@ -310,6 +312,31 @@ export function buildMessageMetadata(msg: MessageDbRow): MessageMetadata {
     mediaAlbumIndex: optionalAlbumInteger(msg.metadata, "mediaAlbumIndex"),
     mediaAlbumCount: optionalAlbumInteger(msg.metadata, "mediaAlbumCount"),
     ...(contactCards.length > 0 ? { contactCards } : {}),
+    linkPreview: normalizeLinkPreview(msg.metadata?.linkPreview),
+  };
+}
+
+function normalizeLinkPreview(value: unknown): LinkPreviewMetadata | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const p = value as Record<string, unknown>;
+  if (typeof p.url !== "string" || !p.url) return undefined;
+  return {
+    url: p.url,
+    domain:
+      typeof p.domain === "string" && p.domain
+        ? p.domain
+        : (() => {
+            try {
+              return new URL(p.url).hostname.replace(/^www\./i, "");
+            } catch {
+              return "";
+            }
+          })(),
+    title: typeof p.title === "string" ? p.title : undefined,
+    description: typeof p.description === "string" ? p.description : undefined,
+    imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : undefined,
+    siteName: typeof p.siteName === "string" ? p.siteName : undefined,
+    mediaType: typeof p.mediaType === "string" ? p.mediaType : undefined,
   };
 }
 

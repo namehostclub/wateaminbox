@@ -10,6 +10,7 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 
+	sharednats "github.com/ygncode-lab/whatsapp-web/services/shared/nats"
 	natsClient "github.com/ygncode-lab/whatsapp-web/services/whatsapp/internal/nats"
 )
 
@@ -200,9 +201,31 @@ func (h *Handler) handleMessage(msg *events.Message) error {
 		msgEvent.Type = "text"
 		msgEvent.Content = *msg.Message.Conversation
 	} else if msg.Message.ExtendedTextMessage != nil {
+		ext := msg.Message.ExtendedTextMessage
 		msgEvent.Type = "text"
-		if msg.Message.ExtendedTextMessage.Text != nil {
-			msgEvent.Content = *msg.Message.ExtendedTextMessage.Text
+		if ext.Text != nil {
+			msgEvent.Content = *ext.Text
+		}
+		if ext.MatchedText != nil || ext.Title != nil || ext.Description != nil {
+			url := ""
+			if ext.MatchedText != nil && *ext.MatchedText != "" {
+				url = *ext.MatchedText
+			}
+			if url != "" {
+				title := ""
+				if ext.Title != nil {
+					title = *ext.Title
+				}
+				desc := ""
+				if ext.Description != nil {
+					desc = *ext.Description
+				}
+				msgEvent.LinkPreview = &sharednats.LinkPreviewPayload{
+					URL:         url,
+					Title:       title,
+					Description: desc,
+				}
+			}
 		}
 	}
 

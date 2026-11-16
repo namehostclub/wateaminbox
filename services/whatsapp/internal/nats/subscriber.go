@@ -85,6 +85,9 @@ type SendMessageCommand struct {
 	MediaAlbumCount      int      `json:"media_album_count,omitempty"`
 	MediaAlbumImageCount int      `json:"media_album_image_count,omitempty"`
 	MediaAlbumVideoCount int      `json:"media_album_video_count,omitempty"`
+	LinkPreviewTitle     string   `json:"link_preview_title,omitempty"`
+	LinkPreviewDescription string `json:"link_preview_description,omitempty"`
+	LinkPreviewURL       string   `json:"link_preview_url,omitempty"`
 	// Reaction-specific fields
 	TargetMessageID string `json:"target_message_id"` // Message ID to react to (for reaction type)
 	Emoji           string `json:"emoji"`             // Emoji for reaction (for reaction type)
@@ -150,6 +153,10 @@ type MessageSender interface {
 
 type mediaAlbumSender interface {
 	SendMediaAlbumMessage(ctx context.Context, jid string, mediaType string, data []byte, caption string, fileName string, mimeType string, replyTo string, replyToSender string, album types.MediaAlbumContext) (types.SendResponse, error)
+}
+
+type messagePreviewSender interface {
+	SendMessageWithPreview(ctx context.Context, jid string, text string, replyTo string, replyToSender string, mentionedJIDs []string, title string, desc string, previewUrl string) (types.SendResponse, error)
 }
 
 // ContactBlocker is the interface for blocking/unblocking contacts.
@@ -830,6 +837,12 @@ func (s *Subscriber) executeSend(ctx context.Context, cmd SendMessageCommand, pr
 	var err error
 	switch cmd.Type {
 	case "text":
+		if cmd.LinkPreviewURL != "" {
+			if previewSender, ok := s.sender.(messagePreviewSender); ok {
+				resp, err = previewSender.SendMessageWithPreview(ctx, cmd.To, cmd.Content, cmd.ReplyTo, cmd.ReplyToSender, cmd.MentionedJIDs, cmd.LinkPreviewTitle, cmd.LinkPreviewDescription, cmd.LinkPreviewURL)
+				break
+			}
+		}
 		resp, err = s.sender.SendMessage(ctx, cmd.To, cmd.Content, cmd.ReplyTo, cmd.ReplyToSender, cmd.MentionedJIDs)
 	case "image", "video", "audio", "document", "sticker":
 		var mediaData []byte
