@@ -9,13 +9,39 @@ export async function fetchLinkPreview(
   url: string,
 ): Promise<LinkPreviewMetadata | null> {
   try {
-    const encoded = encodeURIComponent(url.trim());
-    const response = await fetchWithAuth<ApiResponse<LinkPreviewMetadata>>(
-      `/link-preview?url=${encoded}`,
-    );
-    return response?.data ?? null;
-  } catch {
+    const rawUrl = url.trim();
+    if (!rawUrl) return null;
+
+    const normalizedUrl = /^https?:\/\//i.test(rawUrl)
+      ? rawUrl
+      : `https://${rawUrl}`;
+    const encoded = encodeURIComponent(normalizedUrl);
+
+    const response = await fetchWithAuth<
+      LinkPreviewMetadata | ApiResponse<LinkPreviewMetadata>
+    >(`/link-preview?url=${encoded}`);
+
+    if (!response) return null;
+
+    // handleResponse in client.ts unwraps { data: T } automatically if only 'data' exists,
+    // but handle both unwrapped and wrapped formats safely.
+    if (
+      "data" in response &&
+      response.data &&
+      typeof response.data === "object"
+    ) {
+      return response.data as LinkPreviewMetadata;
+    }
+
+    if ("url" in response || "domain" in response) {
+      return response as LinkPreviewMetadata;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("fetchLinkPreview error:", error);
     return null;
   }
 }
+
 

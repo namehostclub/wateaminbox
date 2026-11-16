@@ -2,14 +2,12 @@ import { Hono } from "hono";
 import { badRequest } from "../lib/errors.js";
 import { successData } from "../lib/response.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { tenantMiddleware } from "../middleware/tenant.js";
 import { getLinkPreview } from "../services/link-preview.service.js";
 
 export const linkPreviewRoutes = new Hono();
 
-// Require authenticated session and tenant context
+// Require authenticated session (no tenant DB needed for external public URL previews)
 linkPreviewRoutes.use("/*", authMiddleware);
-linkPreviewRoutes.use("/*", tenantMiddleware());
 
 linkPreviewRoutes.get("/", async (c) => {
   const url = c.req.query("url");

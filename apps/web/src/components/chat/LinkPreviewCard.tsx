@@ -21,7 +21,7 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-[#f0f2f5] p-2.5 dark:border-white/[0.08] dark:bg-[#202c33]">
+      <div className="flex animate-in fade-in-0 duration-150 items-center gap-3 rounded-xl border border-black/[0.08] bg-white p-2.5 shadow-sm dark:border-white/[0.08] dark:bg-dark-elevated">
         <div className="flex size-14 shrink-0 animate-pulse items-center justify-center rounded-lg bg-black/[0.06] dark:bg-white/[0.08]">
           <Loader2 className="size-5 animate-spin text-[#8696a0]" />
         </div>
@@ -48,9 +48,9 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({
 
   if (variant === "composer") {
     return (
-      <div className="group relative flex items-start gap-3 overflow-hidden rounded-xl border border-black/[0.06] bg-[#f0f2f5] p-2.5 shadow-sm transition-all dark:border-white/[0.08] dark:bg-[#202c33]">
+      <div className="group relative flex animate-in fade-in-0 duration-150 items-start gap-3 overflow-hidden rounded-xl border border-black/[0.08] bg-white p-2.5 shadow-sm transition-all dark:border-white/[0.08] dark:bg-dark-elevated">
         {/* Left: Thumbnail / Logo */}
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-black/[0.06] bg-white shadow-sm dark:border-white/[0.06] dark:bg-dark-elevated">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-black/[0.06] bg-[#f0f2f5] shadow-sm dark:border-white/[0.06] dark:bg-dark-secondary">
           {hasImage ? (
             <img
               src={preview.imageUrl}

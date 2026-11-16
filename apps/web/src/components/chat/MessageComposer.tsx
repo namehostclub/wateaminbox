@@ -626,12 +626,15 @@ function AcknowledgedMessageComposer({
     });
   };
 
-  const URL_REGEX = /https?:\/\/[^\s/$.?#].[^\s]*/i;
+  const URL_REGEX = /(?:https?:\/\/|www\.)[^\s/$.?#].[^\s]*/i;
 
   useEffect(() => {
     const match = message.match(URL_REGEX);
     const rawMatch = match ? match[0] : null;
-    const detectedUrl = rawMatch ? rawMatch.replace(/[.,!?)]+$/, "") : null;
+    let detectedUrl = rawMatch ? rawMatch.replace(/[.,!?)]+$/, "") : null;
+    if (detectedUrl && !/^https?:\/\//i.test(detectedUrl)) {
+      detectedUrl = `https://${detectedUrl}`;
+    }
 
     setCurrentDetectedUrl(detectedUrl);
 
