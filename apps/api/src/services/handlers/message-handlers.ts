@@ -143,9 +143,8 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
       const mapping = await sql<{ canonical_jid: string }>`
         SELECT regexp_replace(jid, ':[0-9]+@', '@') AS canonical_jid
         FROM whatsapp_sessions.whatsmeow_lid_mappings
-        WHERE connection_id::text = ${targetConnId}
-          AND regexp_replace(lid, ':[0-9]+@', '@') = ${contactJid}
-        ORDER BY created_at DESC
+        WHERE regexp_replace(lid, ':[0-9]+@', '@') = ${contactJid}
+        ORDER BY (connection_id::text = ${targetConnId}) DESC, created_at DESC
         LIMIT 1
       `.execute(tenantDb);
       if (mapping.rows[0]?.canonical_jid) {
@@ -213,9 +212,8 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
       const mapping = await sql<{ canonical_jid: string }>`
         SELECT regexp_replace(jid, ':[0-9]+@', '@') AS canonical_jid
         FROM whatsapp_sessions.whatsmeow_lid_mappings
-        WHERE connection_id::text = ${targetConnId}
-          AND regexp_replace(lid, ':[0-9]+@', '@') = ${normalizedSenderJid}
-        ORDER BY created_at DESC
+        WHERE regexp_replace(lid, ':[0-9]+@', '@') = ${normalizedSenderJid}
+        ORDER BY (connection_id::text = ${targetConnId}) DESC, created_at DESC
         LIMIT 1
       `.execute(tenantDb);
       if (mapping.rows[0]?.canonical_jid) {

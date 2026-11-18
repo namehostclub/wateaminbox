@@ -37,17 +37,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     for (const lidContact of lidContacts.rows) {
       const normalizedLid = lidContact.jid.replace(/:[0-9]+@/, "@");
 
-      // 2. Resolve canonical phone JID from whatsmeow_lid_mappings
+      // 2. Resolve canonical phone JID from whatsmeow_lid_mappings.
+      // Prioritize the connection matching the contact, but accept any connection's mapping.
       const mapping = await sql<{ canonical_jid: string }>`
         SELECT regexp_replace(jid, ':[0-9]+@', '@') AS canonical_jid
         FROM whatsapp_sessions.whatsmeow_lid_mappings
         WHERE regexp_replace(lid, ':[0-9]+@', '@') = ${normalizedLid}
+        ORDER BY
           ${
             lidContact.whatsapp_connection_id
-              ? sql`AND connection_id::text = ${lidContact.whatsapp_connection_id}`
+              ? sql`(connection_id::text = ${lidContact.whatsapp_connection_id}) DESC,`
               : sql``
           }
-        ORDER BY created_at DESC
+          created_at DESC
         LIMIT 1
       `.execute(db);
 
@@ -62,12 +64,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         SELECT id
         FROM ${sql.table(`${schemaName}.contacts`)}
         WHERE jid = ${canonicalJid}
+          AND id != ${lidContact.id}::uuid
+        ORDER BY
           ${
             lidContact.whatsapp_connection_id
-              ? sql`AND (whatsapp_connection_id = ${lidContact.whatsapp_connection_id}::uuid OR whatsapp_connection_id IS NULL)`
+              ? sql`(whatsapp_connection_id = ${lidContact.whatsapp_connection_id}::uuid) DESC,`
               : sql``
           }
-          AND id != ${lidContact.id}::uuid
+          created_at ASC
         LIMIT 1
       `.execute(db);
 
@@ -81,19 +85,21 @@ export async function up(db: Kysely<unknown>): Promise<void> {
           WHERE contact_id = ${lidContact.id}::uuid
         `.execute(db);
 
-        // Move conversation cases or delete conflicting
+        // Handle active conversation cases to avoid violating cc_active_uidx
+        await sql`
+          DELETE FROM ${sql.table(`${schemaName}.conversation_cases`)}
+          WHERE contact_id = ${lidContact.id}::uuid
+            AND status IN ('open', 'pending')
+            AND EXISTS (
+              SELECT 1 FROM ${sql.table(`${schemaName}.conversation_cases`)}
+              WHERE contact_id = ${targetId}::uuid AND status IN ('open', 'pending')
+            )
+        `.execute(db);
+
+        // Move all remaining cases to target contact
         await sql`
           UPDATE ${sql.table(`${schemaName}.conversation_cases`)}
           SET contact_id = ${targetId}::uuid
-          WHERE contact_id = ${lidContact.id}::uuid
-            AND NOT EXISTS (
-              SELECT 1 FROM ${sql.table(`${schemaName}.conversation_cases`)} existing
-              WHERE existing.contact_id = ${targetId}::uuid
-                AND existing.id = ${sql.table(`${schemaName}.conversation_cases`)}.id
-            )
-        `.execute(db);
-        await sql`
-          DELETE FROM ${sql.table(`${schemaName}.conversation_cases`)}
           WHERE contact_id = ${lidContact.id}::uuid
         `.execute(db);
 
@@ -116,6 +122,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         // Delete any locks on the LID contact
         await sql`
           DELETE FROM ${sql.table(`${schemaName}.conversation_locks`)}
+          WHERE contact_id = ${lidContact.id}::uuid
+        `.execute(db);
+
+        // Repoint any foreign key references from conversations or endpoints
+        await sql`
+          UPDATE ${sql.table(`${schemaName}.conversations`)}
+          SET legacy_contact_id = ${targetId}::uuid
+          WHERE legacy_contact_id = ${lidContact.id}::uuid
+        `.execute(db);
+
+        await sql`
+          UPDATE ${sql.table(`${schemaName}.contact_endpoints`)}
+          SET contact_id = ${targetId}::uuid
           WHERE contact_id = ${lidContact.id}::uuid
         `.execute(db);
 
