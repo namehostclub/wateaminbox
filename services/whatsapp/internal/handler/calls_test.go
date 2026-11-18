@@ -79,7 +79,7 @@ func TestHandleCallTerminate(t *testing.T) {
 
 	require.Len(t, publishedEvents, 1)
 	evt := publishedEvents[0]
-	assert.Equal(t, "call_term_test-call-id-123", evt.MessageID)
+	assert.Equal(t, "call_test-call-id-123", evt.MessageID)
 	assert.Equal(t, callerJID.String(), evt.From)
 	assert.True(t, evt.IsSystemEvent)
 	require.NotNil(t, evt.CallEvent)
@@ -87,5 +87,44 @@ func TestHandleCallTerminate(t *testing.T) {
 	assert.Equal(t, "missed", evt.CallEvent.Status)
 	assert.Equal(t, "timeout", evt.CallEvent.Reason)
 	assert.Contains(t, evt.Content, "Missed WhatsApp")
+}
+
+func TestHandleCallWithLIDResolution(t *testing.T) {
+	var publishedEvents []natsClient.MessageEvent
+	h := &Handler{
+		config: Config{
+			CompanyID:    "test-company",
+			ConnectionID: "test-connection",
+		},
+		publishMessage: func(evt natsClient.MessageEvent) error {
+			publishedEvents = append(publishedEvents, evt)
+			return nil
+		},
+	}
+
+	lidJID := types.NewJID("177687108808860", types.HiddenUserServer)
+	phoneJID := types.NewJID("447713469894", types.DefaultUserServer)
+	now := time.Now()
+
+	offer := &events.CallOffer{
+		BasicCallMeta: types.BasicCallMeta{
+			From:           lidJID,
+			Timestamp:      now,
+			CallCreator:    lidJID,
+			CallCreatorAlt: phoneJID,
+			CallID:         "call-lid-resolve-456",
+		},
+	}
+
+	h.handleCallOffer(offer)
+
+	require.Len(t, publishedEvents, 1)
+	evt := publishedEvents[0]
+	// Caller JID should be resolved to the phone number, NOT the LID
+	assert.Equal(t, phoneJID.String(), evt.From)
+	assert.Equal(t, phoneJID.String(), evt.To)
+	assert.Equal(t, "call_call-lid-resolve-456", evt.MessageID)
+	assert.True(t, evt.IsSystemEvent)
+	assert.Equal(t, "call-lid-resolve-456", evt.CallEvent.CallID)
 }
 

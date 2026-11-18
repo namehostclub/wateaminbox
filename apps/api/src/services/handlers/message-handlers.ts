@@ -124,7 +124,7 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
         `Message ${payload.messageId} has no contact JID`,
       );
     }
-    const contactJid = normalizeJid(rawContactJid);
+    let contactJid = normalizeJid(rawContactJid);
     if (!contactJid) {
       logger.warn(
         { companyId, rawContactJid },
@@ -133,6 +133,24 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
       throw new PermanentEventError(
         `Message ${payload.messageId} has invalid contact JID ${rawContactJid}`,
       );
+    }
+
+    // WhatsApp calls or direct messages can arrive with an opaque LID (e.g. 177687108808860@lid).
+    // Always resolve the canonical phone JID from whatsmeow_lid_mappings to prevent
+    // creating a separate "WhatsApp user (ID ...)" contact.
+    if (contactJid.endsWith("@lid")) {
+      const targetConnId = sessionId ?? connection.id;
+      const mapping = await sql<{ canonical_jid: string }>`
+        SELECT regexp_replace(jid, ':[0-9]+@', '@') AS canonical_jid
+        FROM whatsapp_sessions.whatsmeow_lid_mappings
+        WHERE connection_id::text = ${targetConnId}
+          AND regexp_replace(lid, ':[0-9]+@', '@') = ${contactJid}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `.execute(tenantDb);
+      if (mapping.rows[0]?.canonical_jid) {
+        contactJid = mapping.rows[0].canonical_jid;
+      }
     }
     let contact = await tenantDb
       .selectFrom("contacts")
@@ -189,6 +207,21 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
     // existing contact name when WhatsApp omits one.
     let normalizedSenderJid = normalizeJid(payload.from);
     let senderName = payload.senderName?.trim() || null;
+
+    if (normalizedSenderJid?.endsWith("@lid")) {
+      const targetConnId = sessionId ?? connection.id;
+      const mapping = await sql<{ canonical_jid: string }>`
+        SELECT regexp_replace(jid, ':[0-9]+@', '@') AS canonical_jid
+        FROM whatsapp_sessions.whatsmeow_lid_mappings
+        WHERE connection_id::text = ${targetConnId}
+          AND regexp_replace(lid, ':[0-9]+@', '@') = ${normalizedSenderJid}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `.execute(tenantDb);
+      if (mapping.rows[0]?.canonical_jid) {
+        normalizedSenderJid = mapping.rows[0].canonical_jid;
+      }
+    }
 
     // Some history syncs omit MessageKey.Participant and report the group as
     // `from`. Whatsmeow's message-secret store still retains the actual author.
@@ -442,14 +475,28 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
               )
               .returning("id")
               .executeTakeFirst()
-          : await insertQuery
-              .onConflict((oc) =>
-                oc
-                  .columns(["whatsapp_connection_id", "message_id"])
-                  .doNothing(),
-              )
-              .returning("id")
-              .executeTakeFirst();
+          : payload.callEvent
+            ? await insertQuery
+                .onConflict((oc) =>
+                  oc
+                    .columns(["whatsapp_connection_id", "message_id"])
+                    .doUpdateSet({
+                      content: sql`excluded.content`,
+                      metadata: sql`excluded.metadata`,
+                      status: sql`excluded.status`,
+                      timestamp: sql`excluded.timestamp`,
+                    }),
+                )
+                .returning("id")
+                .executeTakeFirst()
+            : await insertQuery
+                .onConflict((oc) =>
+                  oc
+                    .columns(["whatsapp_connection_id", "message_id"])
+                    .doNothing(),
+                )
+                .returning("id")
+                .executeTakeFirst();
 
         // If insert was skipped due to duplicate, skip all downstream
         // processing - including opening/reopening a case, which must never

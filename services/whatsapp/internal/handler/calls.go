@@ -7,24 +7,38 @@ import (
 
 	sharednats "github.com/ygncode-lab/whatsapp-web/services/shared/nats"
 	natsClient "github.com/ygncode-lab/whatsapp-web/services/whatsapp/internal/nats"
+	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
+
+// resolveCallJIDs canonicalizes caller and chat JIDs. WhatsApp frequently sends
+// calls using the caller's internal LID. Resolving the LID to the canonical phone
+// number JID prevents calls from being partitioned into separate "WhatsApp user (ID ...)" contacts.
+func (h *Handler) resolveCallJIDs(meta *types.BasicCallMeta) (types.JID, types.JID, bool, string) {
+	primaryCaller := meta.From
+	if !meta.CallCreator.IsEmpty() {
+		primaryCaller = meta.CallCreator
+	}
+	callerJID := h.resolvePreferredJID(primaryCaller, meta.CallCreatorAlt)
+	chatJID := callerJID
+	isGroup := false
+	groupID := ""
+
+	if !meta.GroupJID.IsEmpty() {
+		isGroup = true
+		chatJID = meta.GroupJID.ToNonAD()
+		groupID = chatJID.String()
+	}
+
+	return callerJID, chatJID, isGroup, groupID
+}
 
 // handleCallOffer handles incoming call offer events from WhatsApp.
 func (h *Handler) handleCallOffer(evt *events.CallOffer) {
 	if evt == nil {
 		return
 	}
-	callerJID := evt.From.ToNonAD()
-	chatJID := callerJID
-	isGroup := false
-	groupID := ""
-
-	if !evt.GroupJID.IsEmpty() {
-		isGroup = true
-		chatJID = evt.GroupJID.ToNonAD()
-		groupID = chatJID.String()
-	}
+	callerJID, chatJID, isGroup, groupID := h.resolveCallJIDs(&evt.BasicCallMeta)
 
 	log.Printf("Incoming WhatsApp call offer from %s (CallID: %s)", callerJID.String(), evt.CallID)
 
@@ -62,16 +76,7 @@ func (h *Handler) handleCallTerminate(evt *events.CallTerminate) {
 	if evt == nil {
 		return
 	}
-	callerJID := evt.From.ToNonAD()
-	chatJID := callerJID
-	isGroup := false
-	groupID := ""
-
-	if !evt.GroupJID.IsEmpty() {
-		isGroup = true
-		chatJID = evt.GroupJID.ToNonAD()
-		groupID = chatJID.String()
-	}
+	callerJID, chatJID, isGroup, groupID := h.resolveCallJIDs(&evt.BasicCallMeta)
 
 	reason := evt.Reason
 	if reason == "" {
@@ -87,8 +92,10 @@ func (h *Handler) handleCallTerminate(evt *events.CallTerminate) {
 		Timestamp: evt.Timestamp.Format(time.RFC3339),
 	}
 
+	// Use unified message ID call_<CallID> so the backend updates the call record in-place
+	// instead of creating duplicate stacked messages for the same call lifecycle.
 	msgEvent := natsClient.MessageEvent{
-		MessageID:     fmt.Sprintf("call_term_%s", evt.CallID),
+		MessageID:     fmt.Sprintf("call_%s", evt.CallID),
 		From:          callerJID.String(),
 		To:            chatJID.String(),
 		FromMe:        false,
@@ -114,16 +121,7 @@ func (h *Handler) handleCallReject(evt *events.CallReject) {
 	if evt == nil {
 		return
 	}
-	callerJID := evt.From.ToNonAD()
-	chatJID := callerJID
-	isGroup := false
-	groupID := ""
-
-	if !evt.GroupJID.IsEmpty() {
-		isGroup = true
-		chatJID = evt.GroupJID.ToNonAD()
-		groupID = chatJID.String()
-	}
+	callerJID, chatJID, isGroup, groupID := h.resolveCallJIDs(&evt.BasicCallMeta)
 
 	log.Printf("WhatsApp call rejected from %s (CallID: %s)", callerJID.String(), evt.CallID)
 
@@ -135,7 +133,7 @@ func (h *Handler) handleCallReject(evt *events.CallReject) {
 	}
 
 	msgEvent := natsClient.MessageEvent{
-		MessageID:     fmt.Sprintf("call_decl_%s", evt.CallID),
+		MessageID:     fmt.Sprintf("call_%s", evt.CallID),
 		From:          callerJID.String(),
 		To:            chatJID.String(),
 		FromMe:        false,
@@ -155,4 +153,5 @@ func (h *Handler) handleCallReject(evt *events.CallReject) {
 		}
 	}
 }
+
 
