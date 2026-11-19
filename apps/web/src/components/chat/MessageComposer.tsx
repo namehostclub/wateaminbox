@@ -16,6 +16,7 @@ import {
   Paperclip,
   Send,
   Smile,
+  UploadCloud,
   X,
 } from "lucide-react";
 import {
@@ -52,6 +53,7 @@ import { ChannelRoute, ConnectionRoute } from "./ConnectionIdentity";
 import { useComposerFeatures } from "./composer-capabilities";
 import { shouldSendMessageOnEnter } from "./composer-keyboard";
 import { pickPastedAttachment } from "./composer-paste";
+import { hasDragFiles, pickDroppedAttachments } from "./composer-drop";
 import { canScheduleMessage } from "./composer-schedule";
 import { GroupMentionPicker } from "./GroupMentionPicker";
 import {
@@ -935,6 +937,82 @@ function AcknowledgedMessageComposer({
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const dragDepthRef = useRef(0);
+
+  const handleDragEnter = useCallback(
+    (event: DragEvent) => {
+      if (isInputDisabled || !conversationId || !features.canAttach) return;
+      if (pendingAttachments.length > 0) return;
+      if (!hasDragFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepthRef.current++;
+      setIsDraggingFiles(true);
+    },
+    [conversationId, features.canAttach, isInputDisabled, pendingAttachments.length],
+  );
+
+  const handleDragOver = useCallback(
+    (event: DragEvent) => {
+      if (isInputDisabled || !conversationId || !features.canAttach) return;
+      if (pendingAttachments.length > 0) return;
+      if (!hasDragFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+    },
+    [conversationId, features.canAttach, isInputDisabled, pendingAttachments.length],
+  );
+
+  const handleDragLeave = useCallback(
+    (event: DragEvent) => {
+      if (!hasDragFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepthRef.current--;
+      if (dragDepthRef.current <= 0) {
+        dragDepthRef.current = 0;
+        setIsDraggingFiles(false);
+      }
+    },
+    [],
+  );
+
+  const handleDrop = useCallback(
+    (event: DragEvent) => {
+      if (isInputDisabled || !conversationId || !features.canAttach) return;
+      if (pendingAttachments.length > 0) return;
+      if (!hasDragFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDraggingFiles(false);
+
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      const attachments = pickDroppedAttachments(files);
+      if (attachments.length > 0) {
+        setShowAttachmentMenu(false);
+        setShowEmojiPicker(false);
+        setPendingAttachments(attachments);
+      }
+    },
+    [conversationId, features.canAttach, isInputDisabled, pendingAttachments.length],
+  );
+
+  useEffect(() => {
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop]);
+
   const triggerFileInput = (type: "image" | "document" | "audio") => {
     if (type === "image") {
       imageInputRef.current?.click();
@@ -1397,6 +1475,23 @@ function AcknowledgedMessageComposer({
     </div>
       </footer>
 
+      {/* WhatsApp Web Style Drag-and-Drop Overlay */}
+      {isDraggingFiles && (
+        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-[#0b141a]/75 backdrop-blur-sm pointer-events-none transition-all animate-in fade-in-0 duration-150">
+          <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#00a884] bg-[#111b21]/95 px-12 py-10 text-center shadow-2xl">
+            <div className="mb-4 grid size-20 place-items-center rounded-full bg-[#00a884]/20 text-[#00a884]">
+              <UploadCloud className="size-10 animate-bounce" aria-hidden="true" />
+            </div>
+            <p className="text-xl font-bold text-white">
+              {t("chat.dropFilesToSend", "Drop files here to send")}
+            </p>
+            <p className="mt-1 text-sm text-white/60">
+              {t("chat.dropFilesSubhint", "Drag & drop photos, videos, or documents")}
+            </p>
+          </div>
+        </div>
+      )}
+
       {pendingAttachments.length > 0 && (
         <AttachmentPreviewDialog
           attachments={pendingAttachments}
@@ -1407,6 +1502,27 @@ function AcknowledgedMessageComposer({
               ? () => imageInputRef.current?.click()
               : undefined
           }
+          onDropFiles={(droppedFiles) => {
+            if (pendingAttachments[0]?.type === "image") {
+              setPendingAttachments((current) => {
+                const gallery = appendGalleryFiles(
+                  current.filter((att) => att.type === "image"),
+                  droppedFiles,
+                );
+                if (gallery.omitted > 0) {
+                  toast.warning(
+                    `A gallery supports up to ${MAX_MEDIA_GALLERY_ITEMS} photos and videos.`,
+                  );
+                }
+                return gallery.attachments;
+              });
+            } else {
+              const newAttachments = pickDroppedAttachments(droppedFiles);
+              if (newAttachments.length > 0) {
+                setPendingAttachments(newAttachments);
+              }
+            }
+          }}
           onRemoveFile={(index) =>
             setPendingAttachments((current) =>
               current.filter((_, itemIndex) => itemIndex !== index),

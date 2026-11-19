@@ -194,6 +194,9 @@
       "unknown": "Failed to send message"
     },
     "addCaption": "Add a caption…",
+    "dropFilesToSend": "Drop files here to send",
+    "dropFilesSubhint": "Drag & drop photos, videos, or documents",
+    "dropFilesToAdd": "Drop files to add to gallery",
     "allCaughtUp": "All caught up!",
     "allWhatsappNumbers": "All WhatsApp numbers",
     "attachFile": "Attach file",

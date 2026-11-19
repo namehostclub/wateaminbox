@@ -8,7 +8,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Popover,
@@ -33,7 +33,7 @@ export interface ImageEditorToolbarProps {
   canClear: boolean;
 }
 
-export function ImageEditorToolbar({
+export const ImageEditorToolbar = memo(function ImageEditorToolbar({
   activeTool,
   onSelectTool,
   activeColor,
@@ -245,5 +245,5 @@ export function ImageEditorToolbar({
       )}
     </div>
   );
-}
+});
 

@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -32,22 +33,21 @@ interface ImageAnnotationCanvasProps {
   onCanUndoChange?: (canUndo: boolean) => void;
 }
 
-export const ImageAnnotationCanvas = forwardRef<
-  ImageEditorHandle,
-  ImageAnnotationCanvasProps
->(function ImageAnnotationCanvas(
-  {
-    imageSrc,
-    originalFile,
-    activeTool,
-    activeColor,
-    rotation,
-    isHd,
-    onHasEditsChange,
-    onCanUndoChange,
-  },
-  ref,
-) {
+export const ImageAnnotationCanvas = memo(
+  forwardRef<ImageEditorHandle, ImageAnnotationCanvasProps>(
+    function ImageAnnotationCanvas(
+      {
+        imageSrc,
+        originalFile,
+        activeTool,
+        activeColor,
+        rotation,
+        isHd,
+        onHasEditsChange,
+        onCanUndoChange,
+      },
+      ref,
+    ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -437,4 +437,4 @@ export const ImageAnnotationCanvas = forwardRef<
       )}
     </div>
   );
-});
+}));
