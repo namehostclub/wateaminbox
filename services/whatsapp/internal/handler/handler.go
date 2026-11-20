@@ -121,6 +121,7 @@ type Handler struct {
 
 	profilePictureCache    sync.Map
 	profilePictureRequests singleflight.Group
+	answeredCalls          sync.Map
 	// fetchProfilePictureFn overrides the WhatsApp/storage round trip in tests.
 	fetchProfilePictureFn func(types.JID) (string, error)
 
@@ -268,6 +269,8 @@ func (h *Handler) HandleEvent(evt interface{}) {
 		h.handleOfflineSyncCompleted(v)
 	case *events.CallOffer:
 		h.handleCallOffer(v)
+	case *events.CallAccept:
+		h.handleCallAccept(v)
 	case *events.CallTerminate:
 		h.handleCallTerminate(v)
 	case *events.CallReject:

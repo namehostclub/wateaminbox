@@ -253,5 +253,28 @@ describe("handleChatReadEvent", () => {
     expect(contactBroadcasts.length).toBe(1);
     expect(contactBroadcasts[0].event).toBe("conversation:read");
   });
+
+  test("marks synthetic call messages as read even when messageIds only contains text message ids", async () => {
+    const event: ChatReadEvent = {
+      contractVersion: 1,
+      type: "chat_read",
+      companyId: "comp-1",
+      connectionId: "conn-1",
+      timestamp: new Date().toISOString(),
+      payload: {
+        chatJid: "923001234567@s.whatsapp.net",
+        read: true,
+        timestamp: new Date().toISOString(),
+        messageIds: ["3EB012345678"],
+      },
+    };
+
+    await handleChatReadEvent(event);
+
+    expect(stateUpdates.length).toBe(1);
+    expect(stateUpdates[0].unread_count).toBe(0);
+    expect(messageUpdates.length).toBe(1);
+    expect(messageUpdates[0].status).toBe("read");
+  });
 });
 

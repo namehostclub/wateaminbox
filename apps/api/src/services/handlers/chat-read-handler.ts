@@ -121,6 +121,23 @@ export async function handleChatReadEvent(event: ChatReadEvent): Promise<void> {
     }
 
     if (!contact) {
+      const bareJid = normalizedChatJid.replace(/:[0-9]+@/, "@");
+      contact = await tenantDb
+        .selectFrom("contacts")
+        .select(["id", "jid"])
+        .where((eb) =>
+          eb.or([
+            eb("jid", "=", normalizedChatJid),
+            eb(sql`regexp_replace(jid, ':[0-9]+@', '@')`, "=", bareJid),
+          ]),
+        )
+        .orderBy(
+          sql`CASE WHEN whatsapp_connection_id = ${connectionId} THEN 0 ELSE 1 END`,
+        )
+        .executeTakeFirst();
+    }
+
+    if (!contact) {
       logger.debug(
         { chatJid: normalizedChatJid, connectionId },
         "Contact not found for chat_read event; skipping",
@@ -166,13 +183,17 @@ export async function handleChatReadEvent(event: ChatReadEvent): Promise<void> {
         .updateTable("messages")
         .set({ status: "read" })
         .where("contact_id", "=", contact.id)
-        .where("whatsapp_connection_id", "=", connectionId)
         .where("from_me", "=", false)
         .where("status", "!=", "read");
 
       if (payload.messageIds && payload.messageIds.length > 0) {
         await messageUpdateQuery
-          .where("message_id", "in", payload.messageIds)
+          .where((eb) =>
+            eb.or([
+              eb("message_id", "in", payload.messageIds!),
+              eb("message_id", "like", "call_%"),
+            ]),
+          )
           .execute();
       } else {
         await messageUpdateQuery.execute();

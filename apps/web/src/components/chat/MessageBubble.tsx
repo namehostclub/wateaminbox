@@ -316,6 +316,7 @@ export const MessageBubble = memo(function MessageBubble({
     if (message.metadata?.callEvent) {
       const isMissed = message.metadata.callEvent.status === "missed";
       const isDeclined = message.metadata.callEvent.status === "declined";
+      const isAnswered = message.metadata.callEvent.status === "answered";
       const timeStr = formatMessageTime(message.createdAt);
 
       return (
@@ -343,7 +344,9 @@ export const MessageBubble = memo(function MessageBubble({
                   ? "Missed WhatsApp voice call"
                   : isDeclined
                     ? "Declined WhatsApp voice call"
-                    : "Incoming WhatsApp voice call"}
+                    : isAnswered
+                      ? "Answered WhatsApp voice call"
+                      : "Incoming WhatsApp voice call"}
               </span>
               <span className="text-[10px] text-slate-400 dark:text-dark-text-tertiary">
                 {timeStr}

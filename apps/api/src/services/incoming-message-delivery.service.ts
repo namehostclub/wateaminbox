@@ -145,7 +145,11 @@ export async function deliverIncomingMessage(
         callId?: string;
       };
       const eventType =
-        callEvt.status === "incoming" ? "call:incoming" : "call:missed";
+        callEvt.status === "incoming"
+          ? "call:incoming"
+          : callEvt.status === "answered"
+            ? "call:answered"
+            : "call:missed";
       await broadcastToContactViewers(
         companyId,
         contact.id,
@@ -161,6 +165,20 @@ export async function deliverIncomingMessage(
         },
         { connectionId },
       );
+
+      if (callEvt.status === "answered") {
+        await broadcastToContactViewers(
+          companyId,
+          contact.id,
+          "conversation:read",
+          {
+            contactId: contact.id,
+            conversationId: message.conversation_id ?? contact.id,
+            unreadCount: 0,
+          },
+          { connectionId },
+        );
+      }
     }
   }
 

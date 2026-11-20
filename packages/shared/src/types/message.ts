@@ -161,7 +161,7 @@ export interface MessageMetadata {
   isSystemEvent?: boolean;
   callEvent?: {
     callId: string;
-    status: "incoming" | "missed" | "declined";
+    status: "incoming" | "missed" | "declined" | "answered";
     reason?: string;
     timestamp: string;
     isVideo?: boolean;

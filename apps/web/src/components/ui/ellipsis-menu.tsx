@@ -1,8 +1,8 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-import { useClickOutside } from "@/hooks/ui";
 import { useTranslation } from "react-i18next";
 
 export interface EllipsisMenuItem {
@@ -80,29 +80,17 @@ export interface EllipsisMenuProps {
   triggerLabel?: string;
 }
 
+interface MenuPosition {
+  top: number;
+  left?: number;
+  right?: number;
+}
+
 /**
- * Reusable ellipsis (three dots) menu component
- *
- * @example
- * ```tsx
- * <EllipsisMenu
- *   items={[
- *     {
- *       id: "edit",
- *       label: "Edit",
- *       icon: Edit,
- *       onClick: handleEdit,
- *     },
- *     {
- *       id: "delete",
- *       label: "Delete",
- *       icon: Trash2,
- *       onClick: handleDelete,
- *       destructive: true,
- *     },
- *   ]}
- * />
- * ```
+ * Reusable ellipsis (three dots) menu component.
+ * Uses a React Portal mounted into document.body with fixed positioning
+ * so it cleanly renders in front and on top of table rows, headers, and
+ * overflow scroll containers without z-index clipping.
  */
 export function EllipsisMenu({
   items,
@@ -120,6 +108,7 @@ export function EllipsisMenu({
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = React.useState<MenuPosition | null>(null);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
@@ -151,8 +140,73 @@ export function EllipsisMenu({
     [handleClose],
   );
 
-  // Close on click outside
-  useClickOutside(containerRef, handleClose, { enabled: isOpen });
+  // Position calculation relative to viewport
+  const updatePosition = React.useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const estimatedHeight = items.length * 40 + 16;
+
+    // Flip upwards if cramped below and more room above
+    const openUpwards = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const top = openUpwards
+      ? Math.max(8, rect.top - (menuRef.current?.offsetHeight || estimatedHeight) - 4)
+      : Math.min(window.innerHeight - 8, rect.bottom + 4);
+
+    if (align === "left") {
+      setMenuPosition({
+        top,
+        left: Math.max(8, Math.min(window.innerWidth - 200, rect.left)),
+      });
+    } else {
+      setMenuPosition({
+        top,
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    }
+  }, [align, items.length]);
+
+  // Recalculate position on scroll and resize while open
+  React.useEffect(() => {
+    if (!isOpen) {
+      setMenuPosition(null);
+      return;
+    }
+    updatePosition();
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [isOpen, updatePosition]);
+
+  // Dual-ref click outside detection (checking container trigger & portaled menu)
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        containerRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      handleClose();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isOpen, handleClose]);
 
   // Keyboard navigation
   const handleKeyDown = React.useCallback(
@@ -226,7 +280,7 @@ export function EllipsisMenu({
   const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
   return (
-    <div ref={containerRef} className="relative" onKeyDown={handleKeyDown}>
+    <div ref={containerRef} className="relative inline-block" onKeyDown={handleKeyDown}>
       {triggerLabel ? (
         <button
           type="button"
@@ -257,41 +311,54 @@ export function EllipsisMenu({
         </Button>
       )}
 
-      {isOpen && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-orientation="vertical"
-          className={cn(
-            "absolute top-full z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-elevated py-1 shadow-lg",
-            align === "right" ? "right-0" : "left-0",
-            menuClassName,
-          )}
-        >
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                role="menuitem"
-                type="button"
-                disabled={item.disabled}
-                onClick={() => handleItemClick(item)}
-                className={cn(
-                  "flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-whatsapp-green focus:bg-gray-100 dark:focus:bg-dark-tertiary",
-                  item.destructive
-                    ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
-                    : "text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-tertiary",
-                  item.disabled && "opacity-50 cursor-not-allowed",
-                )}
-              >
-                {Icon && <Icon className="h-4 w-4" />}
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-orientation="vertical"
+            style={{
+              position: "fixed",
+              top: menuPosition ? `${menuPosition.top}px` : "-9999px",
+              ...(menuPosition?.left !== undefined
+                ? { left: `${menuPosition.left}px` }
+                : {}),
+              ...(menuPosition?.right !== undefined
+                ? { right: `${menuPosition.right}px` }
+                : {}),
+              zIndex: 9999,
+            }}
+            className={cn(
+              "w-48 rounded-md border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-elevated py-1 shadow-xl",
+              menuClassName,
+            )}
+          >
+            {items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  role="menuitem"
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={() => handleItemClick(item)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-4 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-whatsapp-green focus:bg-gray-100 dark:focus:bg-dark-tertiary",
+                    item.destructive
+                      ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                      : "text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-tertiary",
+                    item.disabled && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

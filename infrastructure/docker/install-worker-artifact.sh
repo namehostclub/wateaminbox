@@ -82,10 +82,9 @@ mkdir -p "$artifact_root"
 [ -d "$artifact_root" ] && [ ! -L "$artifact_root" ] || fail 'artifact root is not a directory'
 install_directory "$version" "$expected_checksum"
 
-# The first staged worker becomes an immutable compatibility bootstrap. Later
-# worker-only releases never rewrite it, so changing WORKER_IMAGE_TAG leaves the
-# orchestrator container model and its fallback binary path unchanged.
-if [ ! -e "$artifact_root/bootstrap" ] && [ ! -L "$artifact_root/bootstrap" ]; then
+# Ensure bootstrap always reflects the active release so orchestrator defaults run the latest worker binary
+if [ "${UPDATE_BOOTSTRAP:-true}" = "true" ] || [ ! -e "$artifact_root/bootstrap" ]; then
+  rm -rf "$artifact_root/bootstrap"
   install_directory bootstrap "$expected_checksum"
 else
   validate_installed bootstrap ""

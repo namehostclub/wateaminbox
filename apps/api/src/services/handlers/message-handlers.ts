@@ -485,7 +485,7 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
                       timestamp: sql`excluded.timestamp`,
                     }),
                 )
-                .returning("id")
+                .returning(["id", sql<boolean>`(xmax = 0)`.as("is_inserted")])
                 .executeTakeFirst()
             : await insertQuery
                 .onConflict((oc) =>
@@ -516,44 +516,78 @@ export async function handleMessageEvent(event: MessageEvent): Promise<void> {
         let caseResult: Awaited<
           ReturnType<typeof openOrReopenCaseForInboundMessage>
         > = null;
+
+        const isCallEvent = Boolean(payload.callEvent);
+        const isCallAnswered = payload.callEvent?.status === "answered";
+        const isCallUpdate =
+          isCallEvent && insertResult && !(insertResult as any).is_inserted;
+
         if (!payload.fromMe && !payload.isHistorySync) {
-          caseResult = await openOrReopenCaseForInboundMessage(
-            trx,
-            companyId,
-            { id: contact.id, isGroup: isGroupMessage },
-            { id: messageId, timestamp: toDbDate(payload.timestamp) },
-          );
-
-          // Increment unread count for the incoming message. The case-open
-          // step above already upserts a conversation_states row via
-          // syncProjection in every reachable path, so this is normally an
-          // UPDATE; the INSERT fallback only matters for the unreachable
-          // defensive case where case-open found no active case at all -
-          // explicitly `status: "open"` there rather than relying on the
-          // column default, since we know a live inbound just arrived.
-          const updateResult = await trx
-            .updateTable("conversation_states")
-            .set((eb) => ({
-              unread_count: eb("unread_count", "+", 1),
-              last_message_at: toDbDate(payload.timestamp),
-              last_message_preview: payload.content?.substring(0, 100) || null,
-              updated_at: toDbDate(),
-            }))
-            .where("contact_id", "=", contact.id)
-            .executeTakeFirst();
-
-          if (updateResult.numUpdatedRows === BigInt(0)) {
+          if (isCallAnswered) {
+            // Answering/picking up a call clears the unread count
             await trx
-              .insertInto("conversation_states")
-              .values({
-                contact_id: contact.id,
-                status: "open",
-                unread_count: 1,
+              .updateTable("conversation_states")
+              .set({
+                unread_count: 0,
                 last_message_at: toDbDate(payload.timestamp),
                 last_message_preview:
                   payload.content?.substring(0, 100) || null,
+                updated_at: toDbDate(),
               })
-              .execute();
+              .where("contact_id", "=", contact.id)
+              .executeTakeFirst();
+          } else if (isCallUpdate) {
+            // Updating an existing call lifecycle record (e.g. CallOffer -> CallTerminate)
+            // must NOT increment unread_count again.
+            await trx
+              .updateTable("conversation_states")
+              .set({
+                last_message_at: toDbDate(payload.timestamp),
+                last_message_preview:
+                  payload.content?.substring(0, 100) || null,
+                updated_at: toDbDate(),
+              })
+              .where("contact_id", "=", contact.id)
+              .executeTakeFirst();
+          } else {
+            caseResult = await openOrReopenCaseForInboundMessage(
+              trx,
+              companyId,
+              { id: contact.id, isGroup: isGroupMessage },
+              { id: messageId, timestamp: toDbDate(payload.timestamp) },
+            );
+
+            // Increment unread count for the incoming message. The case-open
+            // step above already upserts a conversation_states row via
+            // syncProjection in every reachable path, so this is normally an
+            // UPDATE; the INSERT fallback only matters for the unreachable
+            // defensive case where case-open found no active case at all -
+            // explicitly `status: "open"` there rather than relying on the
+            // column default, since we know a live inbound just arrived.
+            const updateResult = await trx
+              .updateTable("conversation_states")
+              .set((eb) => ({
+                unread_count: eb("unread_count", "+", 1),
+                last_message_at: toDbDate(payload.timestamp),
+                last_message_preview: payload.content?.substring(0, 100) || null,
+                updated_at: toDbDate(),
+              }))
+              .where("contact_id", "=", contact.id)
+              .executeTakeFirst();
+
+            if (updateResult.numUpdatedRows === BigInt(0)) {
+              await trx
+                .insertInto("conversation_states")
+                .values({
+                  contact_id: contact.id,
+                  status: "open",
+                  unread_count: 1,
+                  last_message_at: toDbDate(payload.timestamp),
+                  last_message_preview:
+                    payload.content?.substring(0, 100) || null,
+                })
+                .execute();
+            }
           }
 
           if (autoReplyCandidate) {
